@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_environment.dart';
+
 class ApiConfig {
   ApiConfig._();
 
@@ -23,6 +25,11 @@ class ApiConfig {
   }
 
   static Future<void> initialize() async {
+    if (AppEnvironment.isProduction) {
+      baseUrl = _normalize(AppEnvironment.productionBaseUrl);
+      useMock = false;
+      return;
+    }
     final SharedPreferences preferences =
         await SharedPreferences.getInstance();
     baseUrl = _normalize(preferences.getString(_baseUrlKey) ?? '');
@@ -30,6 +37,9 @@ class ApiConfig {
   }
 
   static Future<void> updateBaseUrl(String value) async {
+    if (AppEnvironment.isProduction) {
+      throw StateError('正式版不允许修改服务地址');
+    }
     final String normalized = _normalize(value);
     final SharedPreferences preferences =
         await SharedPreferences.getInstance();
@@ -38,6 +48,9 @@ class ApiConfig {
   }
 
   static Future<void> updateUseMock(bool value) async {
+    if (AppEnvironment.isProduction) {
+      throw StateError('正式版不允许切换 Mock 模式');
+    }
     final SharedPreferences preferences =
         await SharedPreferences.getInstance();
     await preferences.setBool(_useMockKey, value);

@@ -33,22 +33,47 @@ class CircuitSolverApp extends StatelessWidget {
           useMaterial3: true,
           brightness: Brightness.light,
           colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF2563EB),
+            seedColor: const Color(0xFF3157E7),
+            primary: const Color(0xFF3157E7),
+            secondary: const Color(0xFF00A58E),
+            surface: Colors.white,
           ),
-          scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+          scaffoldBackgroundColor: const Color(0xFFF5F7FB),
           appBarTheme: const AppBarTheme(
-            centerTitle: true,
+            centerTitle: false,
             elevation: 0,
-            backgroundColor: Colors.transparent,
-            foregroundColor: Color(0xFF0F172A),
+            scrolledUnderElevation: 0,
+            backgroundColor: Color(0xFFF5F7FB),
+            foregroundColor: Color(0xFF172033),
+            titleTextStyle: TextStyle(
+              color: Color(0xFF172033),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFDCE2EF)),
+            ),
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
+              backgroundColor: const Color(0xFF3157E7),
+              foregroundColor: Colors.white,
+              elevation: 0,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
+          ),
+          navigationBarTheme: const NavigationBarThemeData(
+            backgroundColor: Colors.white,
+            indicatorColor: Color(0xFFE8EDFF),
+            elevation: 0,
           ),
         ),
         initialRoute: SplashPage.routeName,

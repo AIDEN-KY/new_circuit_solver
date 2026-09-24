@@ -58,6 +58,8 @@ class ErrorHandler {
         return const AppException('图片上传超时，请检查网络。');
       case DioExceptionType.receiveTimeout:
         return const AppException('服务器响应超时，请稍后重试。');
+      case DioExceptionType.transformTimeout:
+        return const AppException('服务器数据处理超时，请稍后重试。');
       case DioExceptionType.connectionError:
         return const AppException('无法连接服务器，请检查网络和后端地址。');
       case DioExceptionType.badCertificate:

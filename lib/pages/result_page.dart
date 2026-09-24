@@ -6,6 +6,7 @@ import '../models/ask_response.dart';
 import '../models/solution_step.dart';
 import '../providers/ask_provider.dart';
 import '../widgets/confidence_badge.dart';
+import '../widgets/latex_text.dart';
 import '../widgets/similar_question_tile.dart';
 import '../widgets/step_card.dart';
 import 'home_page.dart';
@@ -208,7 +209,11 @@ class _ResultPageState extends State<ResultPage> {
             SelectableText(response.finalAnswer.isEmpty ? '未返回明确答案' : response.finalAnswer, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
             if (response.finalAnswerLatex.isNotEmpty) ...<Widget>[
               const SizedBox(height: 9),
-              SelectableText(response.finalAnswerLatex, style: const TextStyle(color: Color(0xFFDBEAFE), fontFamily: 'monospace')),
+              LatexText(
+                response.finalAnswerLatex,
+                color: Colors.white,
+                fontSize: 24,
+              ),
             ],
           ],
         ),

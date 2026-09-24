@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/solution_step.dart';
+import 'latex_text.dart';
 
 class StepCard extends StatelessWidget {
   const StepCard({required this.step, super.key});
@@ -43,7 +44,11 @@ class StepCard extends StatelessWidget {
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: SelectableText(step.latex, style: const TextStyle(fontFamily: 'monospace', color: Color(0xFF1E40AF))),
+                    child: LatexText(
+                      step.latex,
+                      color: const Color(0xFF1E40AF),
+                      fontSize: 17,
+                    ),
                   ),
                 ],
               ],

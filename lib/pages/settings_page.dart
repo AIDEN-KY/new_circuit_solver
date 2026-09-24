@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../config/api_config.dart';
+import '../config/app_environment.dart';
 import '../utils/error_handler.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -75,9 +76,10 @@ class _SettingsPageState extends State<SettingsPage> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: <Widget>[
-              const Text('后端接口', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              Container(
+              if (AppEnvironment.showDeveloperTools) ...<Widget>[
+                const Text('测试服务', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
                 child: Column(
@@ -111,7 +113,22 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ],
                 ),
-              ),
+                ),
+              ] else
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: const ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.cloud_done_outlined),
+                    title: Text('在线服务'),
+                    subtitle: Text('服务地址由应用统一配置，用户无需修改'),
+                  ),
+                ),
               if (_message != null) ...<Widget>[
                 const SizedBox(height: 12),
                 Container(
@@ -128,13 +145,15 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
-                child: const Column(
+                child: Column(
                   children: <Widget>[
-                    ListTile(leading: Icon(Icons.electrical_services_rounded), title: Text('电路识图搜题'), subtitle: Text('circuit_solver')),
-                    Divider(height: 1),
-                    ListTile(leading: Icon(Icons.numbers_rounded), title: Text('版本号'), trailing: Text('1.0.0')),
-                    Divider(height: 1),
-                    ListTile(leading: Icon(Icons.school_outlined), title: Text('当前支持'), trailing: Text('电工学电路图')),
+                    const ListTile(leading: Icon(Icons.electrical_services_rounded), title: Text('电路识图搜题'), subtitle: Text('circuit_solver')),
+                    const Divider(height: 1),
+                    const ListTile(leading: Icon(Icons.numbers_rounded), title: Text('版本号'), trailing: Text('1.1.0')),
+                    const Divider(height: 1),
+                    const ListTile(leading: Icon(Icons.school_outlined), title: Text('当前支持'), trailing: Text('电工学电路图')),
+                    const Divider(height: 1),
+                    ListTile(leading: const Icon(Icons.verified_user_outlined), title: const Text('版本类型'), trailing: Text(AppEnvironment.versionLabel)),
                   ],
                 ),
               ),

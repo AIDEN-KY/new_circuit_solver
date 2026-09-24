@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../config/api_config.dart';
+import '../config/app_environment.dart';
 import '../providers/ask_provider.dart';
 import '../utils/error_handler.dart';
 import 'crop_page.dart';
@@ -71,20 +72,29 @@ class _HomePageState extends State<HomePage> {
       builder: (BuildContext context, AskProvider provider, Widget? child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text('电路识图搜题'),
+            title: const Text('电路搜题'),
             actions: <Widget>[
-              IconButton(
-                tooltip: '历史记录',
-                onPressed: () =>
-                    Navigator.pushNamed(context, HistoryPage.routeName),
-                icon: const Icon(Icons.history_rounded),
-              ),
-              IconButton(
-                tooltip: '设置',
-                onPressed: () =>
-                    Navigator.pushNamed(context, SettingsPage.routeName),
-                icon: const Icon(Icons.settings_outlined),
-              ),
+              if (AppEnvironment.showDeveloperTools)
+                Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3D8),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        '内部测试版',
+                        style: TextStyle(
+                          color: Color(0xFF9A5B00),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
           body: SafeArea(
@@ -105,6 +115,15 @@ class _HomePageState extends State<HomePage> {
                         _messageCard('尚未配置真实接口地址，请先前往设置。', true),
                       ],
                       const SizedBox(height: 20),
+                      const Text(
+                        '开始搜题',
+                        style: TextStyle(
+                          color: Color(0xFF172033),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       _actionButton(
                         icon: Icons.photo_camera_rounded,
                         title: '拍照搜题',
@@ -121,19 +140,10 @@ class _HomePageState extends State<HomePage> {
                         onTap: _isPicking ? null : () => _pick(ImageSource.gallery),
                       ),
                       const SizedBox(height: 22),
-                      _mockCard(provider),
-                      const SizedBox(height: 28),
-                      const Icon(
-                        Icons.crop_free_rounded,
-                        size: 42,
-                        color: Color(0xFF64748B),
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        '选择图片后，可手动框住电路图和题目条件',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Color(0xFF64748B)),
-                      ),
+                      if (AppEnvironment.showDeveloperTools)
+                        _mockCard(provider),
+                      const SizedBox(height: 22),
+                      _tipsCard(),
                     ],
                   ),
                 ),
@@ -160,37 +170,111 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: 0,
+            onDestinationSelected: (int index) {
+              if (index == 1) {
+                Navigator.pushNamed(context, HistoryPage.routeName);
+              } else if (index == 2) {
+                Navigator.pushNamed(context, SettingsPage.routeName);
+              }
+            },
+            destinations: const <NavigationDestination>[
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded),
+                label: '首页',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.history_outlined),
+                selectedIcon: Icon(Icons.history_rounded),
+                label: '历史',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings_rounded),
+                label: '设置',
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
   Widget _introCard() => Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
         decoration: BoxDecoration(
-          color: const Color(0xFFEFF6FF),
-          borderRadius: BorderRadius.circular(20),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: <Color>[Color(0xFF3157E7), Color(0xFF6B7CFF)],
+          ),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Color(0x33FFFFFF),
+                    borderRadius: BorderRadius.all(Radius.circular(14)),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(10),
+                    child: Icon(Icons.electrical_services_rounded, color: Colors.white, size: 30),
+                  ),
+                ),
+                Spacer(),
+                Icon(Icons.auto_awesome_rounded, color: Color(0xFFCFD7FF)),
+              ],
+            ),
+            SizedBox(height: 22),
+            Text(
+              '拍下电路题，逐步看懂解法',
+              style: TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w800),
+            ),
+            SizedBox(height: 8),
+            Text(
+              '框选题目区域，获取答案、步骤、知识点与相似题。',
+              style: TextStyle(color: Color(0xFFE3E7FF), height: 1.5),
+            ),
+          ],
+        ),
+      );
+
+  Widget _tipsCard() => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE5E9F2)),
         ),
         child: const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: Color(0xFF2563EB),
-              child: Icon(Icons.bolt_rounded, color: Colors.white, size: 32),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: Color(0xFFE8EDFF),
+                shape: BoxShape.circle,
+              ),
+              child: Padding(
+                padding: EdgeInsets.all(9),
+                child: Icon(Icons.center_focus_strong_rounded, color: Color(0xFF3157E7)),
+              ),
             ),
-            SizedBox(width: 16),
+            SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
+                  Text('拍摄小技巧', style: TextStyle(fontWeight: FontWeight.w700)),
+                  SizedBox(height: 5),
                   Text(
-                    '上传电工学电路题',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    '获取答案、详细步骤、知识点和相似题。',
-                    style: TextStyle(color: Color(0xFF475569)),
+                    '保持画面清晰、光线均匀，并完整拍下电路图和题目条件。',
+                    style: TextStyle(color: Color(0xFF667085), height: 1.45),
                   ),
                 ],
               ),
@@ -206,18 +290,18 @@ class _HomePageState extends State<HomePage> {
     required bool filled,
     required VoidCallback? onTap,
   }) {
-    final Color background = filled ? const Color(0xFF2563EB) : Colors.white;
+    final Color background = filled ? const Color(0xFF3157E7) : Colors.white;
     final Color foreground = filled ? Colors.white : const Color(0xFF0F172A);
     return Material(
       color: background,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             border: filled ? null : Border.all(color: const Color(0xFFCBD5E1)),
           ),
           child: Row(

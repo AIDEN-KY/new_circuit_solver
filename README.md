@@ -15,14 +15,14 @@
 - 真实接口每天 5 次；成功后扣减，Mock 不扣减
 - 本地修改后端 Base URL
 
-## Codemagic 构建 Debug APK
+## Codemagic 构建内部测试版 APK
 
 仓库已包含 `codemagic.yaml`。它会自动：
 
 1. 生成 Android 平台骨架。
 2. 安装 Flutter 依赖。
 3. 运行静态分析和测试。
-4. 执行 `flutter build apk --debug`。
+4. 使用 Release 编译并按 Android CPU 架构拆分 APK。
 5. 将 `build/app/outputs/flutter-apk/*.apk` 保存为构建产物。
 
 ### 1. 上传 Git 仓库
@@ -47,11 +47,11 @@ git push -u origin main
 3. 授权并选择 GitHub/GitLab 仓库。
 4. 项目类型选择 Flutter。
 5. 选择仓库中的 `codemagic.yaml` 工作流。
-6. 启动 `Circuit Solver Android Debug APK`。
+6. 启动 `Circuit Solver Tester Release APK`。
 
-Debug APK 使用 Android 自动生成的 debug 签名，不需要上传正式 keystore。构建成功后，在 Artifacts 区域下载 `app-debug.apk`，传到手机并允许“安装未知来源应用”即可安装。
+内部测试版使用优化后的 Release 编译，但仍保留 Mock 和测试服务地址入口。构建成功后，普通安卓真机优先下载 `app-arm64-v8a-release.apk`。
 
-Codemagic 官方文档确认 Debug APK 可用 `flutter build apk --debug` 构建，产物路径为 `build/app/outputs/flutter-apk/*.apk`。
+正式用户版未来使用相同代码，通过 `APP_ENV=production` 隐藏测试入口并固定生产服务地址，不维护第二套页面代码。
 
 ## 本地运行
 
@@ -82,9 +82,9 @@ https://api.example.com
 ## 当前限制
 
 - 只构建 Android，不包含 iOS 配置。
-- LaTeX 以原始文本显示，以减少依赖。
+- 答案和步骤中的 LaTeX 使用数学公式组件渲染。
 - 每日次数是 MVP 本地限制，正式产品还应在后端鉴权和限流。
-- Debug APK 仅用于测试，不能直接上架应用商店。
+- 当前 APK 仍是内部测试产品，不能直接上架应用商店。
 
 ## 常见问题
 

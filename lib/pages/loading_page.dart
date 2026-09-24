@@ -19,9 +19,7 @@ class _LoadingPageState extends State<LoadingPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_provider == null) {
-      _provider = context.read<AskProvider>()..addListener(_onChanged);
-    }
+    _provider ??= context.read<AskProvider>()..addListener(_onChanged);
     if (!_started) {
       _started = true;
       WidgetsBinding.instance.addPostFrameCallback(
