@@ -8,6 +8,8 @@ import '../config/api_config.dart';
 import '../models/ask_request.dart';
 import '../models/ask_response.dart';
 import '../models/backend_health.dart';
+import '../models/chat_message.dart';
+import '../models/history_item.dart';
 import '../services/api_service.dart';
 import '../services/history_service.dart';
 import '../services/mock_service.dart';
@@ -58,8 +60,13 @@ class AskProvider extends ChangeNotifier {
   BackendHealth? backendHealth;
   String? backendHealthError;
   bool checkingBackend = false;
+  final List<ChatMessage> chatMessages = <ChatMessage>[];
+  bool sendingChat = false;
+  String? chatError;
 
   bool get useMock => ApiConfig.useMock;
+  bool get hasQuestionContext =>
+      response != null && imagePath != null && cropBox != null;
   bool get isLoading => <AskStatus>{
         AskStatus.preparingImage,
         AskStatus.uploading,
@@ -133,6 +140,8 @@ class AskProvider extends ChangeNotifier {
     response = null;
     errorMessage = null;
     historyWarning = null;
+    chatMessages.clear();
+    chatError = null;
     status = AskStatus.idle;
     notifyListeners();
   }
@@ -180,7 +189,9 @@ class AskProvider extends ChangeNotifier {
         await _historyService.addHistory(
           id: '${result.requestId}_${DateTime.now().millisecondsSinceEpoch}',
           imagePath: image.filePath,
-          finalAnswer: result.finalAnswer,
+          response: result,
+          cropBox: request.cropBox,
+          rotationDegrees: request.rotationDegrees,
         );
       } catch (error) {
         historyWarning = '答案已生成，但历史记录保存失败：${ErrorHandler.messageFor(error)}';
@@ -204,11 +215,67 @@ class AskProvider extends ChangeNotifier {
 
   Future<void> retry() => submitPreparedQuestion();
 
+  void openHistory(HistoryItem item) {
+    response = item.response ?? _legacyHistoryResponse(item);
+    imagePath = item.imagePath;
+    cropBox = item.cropBox;
+    rotationDegrees = item.rotationDegrees;
+    errorMessage = null;
+    historyWarning = item.response == null
+        ? '这是一条旧版记录，仅保存了图片和最终答案。'
+        : null;
+    chatMessages.clear();
+    chatError = null;
+    status = AskStatus.success;
+    notifyListeners();
+  }
+
+  Future<void> sendChat(String value) async {
+    final String message = value.trim();
+    final AskResponse? original = response;
+    if (message.isEmpty || sendingChat) return;
+    if (original == null || imagePath == null || cropBox == null) {
+      chatError = '这条记录缺少原题上下文，无法继续追问。';
+      notifyListeners();
+      return;
+    }
+    final List<ChatMessage> history = List<ChatMessage>.from(chatMessages);
+    chatMessages.add(ChatMessage(role: 'user', content: message));
+    sendingChat = true;
+    chatError = null;
+    notifyListeners();
+    try {
+      if (useMock) {
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+        chatMessages.add(const ChatMessage(
+          role: 'assistant',
+          content: r'这是演示回复。真实模式下，我会结合原图和你的补充条件重新核对 $R_1$、$U$ 与计算结果。',
+        ));
+      } else {
+        final AskRequest request = await _createRequest();
+        final ChatMessage answer = await _apiService.chat(
+          request: request,
+          originalResponse: original,
+          messages: history,
+          message: message,
+        );
+        chatMessages.add(answer);
+      }
+    } catch (error) {
+      chatError = ErrorHandler.messageFor(error);
+    } finally {
+      sendingChat = false;
+      notifyListeners();
+    }
+  }
+
   void reset() {
     status = AskStatus.idle;
     response = null;
     errorMessage = null;
     historyWarning = null;
+    chatMessages.clear();
+    chatError = null;
     imagePath = null;
     cropBox = null;
     rotationDegrees = 0;
@@ -219,17 +286,24 @@ class AskProvider extends ChangeNotifier {
     Map<String, num> box,
     PreparedImage image,
   ) {
-    final double scaleX = image.width / image.originalWidth;
-    final double scaleY = image.height / image.originalHeight;
+    final bool quarterTurn = rotationDegrees == 90 || rotationDegrees == 270;
+    final int targetWidth = quarterTurn ? image.height : image.width;
+    final int targetHeight = quarterTurn ? image.width : image.height;
+    final double scaleX = quarterTurn
+        ? image.height / image.originalHeight
+        : image.width / image.originalWidth;
+    final double scaleY = quarterTurn
+        ? image.width / image.originalWidth
+        : image.height / image.originalHeight;
     final double x = (box['x'] ?? 0) * scaleX;
     final double y = (box['y'] ?? 0) * scaleY;
-    final double safeX = x.clamp(0, math.max(0, image.width - 1)).toDouble();
-    final double safeY = y.clamp(0, math.max(0, image.height - 1)).toDouble();
+    final double safeX = x.clamp(0, math.max(0, targetWidth - 1)).toDouble();
+    final double safeY = y.clamp(0, math.max(0, targetHeight - 1)).toDouble();
     final double width = ((box['w'] ?? 1) * scaleX)
-        .clamp(1, math.max(1, image.width - safeX))
+        .clamp(1, math.max(1, targetWidth - safeX))
         .toDouble();
     final double height = ((box['h'] ?? 1) * scaleY)
-        .clamp(1, math.max(1, image.height - safeY))
+        .clamp(1, math.max(1, targetHeight - safeY))
         .toDouble();
     return <String, num>{
       'x': safeX.round(),
@@ -238,6 +312,37 @@ class AskProvider extends ChangeNotifier {
       'h': height.round(),
     };
   }
+
+  Future<AskRequest> _createRequest() async {
+    final PreparedImage image = await ImageUtils.compressAndEncode(imagePath!);
+    return AskRequest(
+      imageBase64: image.dataUri,
+      cropBox: _scaleCropBox(cropBox!, image),
+      rotationDegrees: rotationDegrees,
+      subject: 'circuit',
+    );
+  }
+
+  AskResponse _legacyHistoryResponse(HistoryItem item) => AskResponse.fromJson(
+        <String, dynamic>{
+          'request_id': item.id,
+          'source': 'library',
+          'confidence': 'low',
+          'final_answer': item.finalAnswer,
+          'final_answer_latex': '',
+          'steps': <dynamic>[],
+          'knowledge_points': <dynamic>[],
+          'unit_check': <String, dynamic>{
+            'expected_unit': '',
+            'actual_unit': '',
+            'passed': true,
+            'note': '旧版历史记录未保存单位检查信息。',
+          },
+          'similar_questions': <dynamic>[],
+          'uncertain': <dynamic>['旧版记录未保存完整解题步骤。'],
+          'disclaimer': '该记录由旧版本保存，仅可查看当时的最终答案。',
+        },
+      );
 
   Future<void> _loadQuota() async {
     try {

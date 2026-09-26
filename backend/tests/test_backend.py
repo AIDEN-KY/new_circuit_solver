@@ -9,7 +9,15 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.image_processing import ImageProcessor
 from app.main import create_app
-from app.models import AiSolution, AskRequest, AskResponse, CropBox, SolutionStep, UnitCheck
+from app.models import (
+    AiSolution,
+    AskRequest,
+    AskResponse,
+    ChatResponse,
+    CropBox,
+    SolutionStep,
+    UnitCheck,
+)
 from app.repository import QuestionRepository
 from app.seed_regression import SEEDS, seed_regression_questions
 from app.service import AskService
@@ -54,6 +62,12 @@ class FakeAiClient:
     async def solve(self, image_bytes: bytes) -> AiSolution:
         self.called = True
         return solution()
+
+    async def follow_up(
+        self, image_bytes: bytes, original_response, messages, message: str
+    ) -> ChatResponse:
+        self.called = True
+        return ChatResponse(answer=f"已根据补充条件核对：${message}$")
 
 
 def test_identical_image_hits_library(tmp_path) -> None:
@@ -240,7 +254,7 @@ def test_health_endpoint_reports_safe_service_status(tmp_path) -> None:
     assert response.status_code == 200
     assert response.json() == {
         "status": "ok",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "ai_provider": "deepseek",
         "ai_model": "deepseek-flash",
         "ai_configured": True,
@@ -275,3 +289,59 @@ def test_http_api_rejects_invalid_crop(tmp_path) -> None:
 
     assert response.status_code == 400
     assert response.json()["detail"] == "框选区域超出图片范围"
+
+
+def test_rotation_happens_before_crop() -> None:
+    processor = ImageProcessor(max_image_bytes=1024 * 1024)
+    source = Image.new("RGB", (120, 80), color="white")
+    output = BytesIO()
+    source.save(output, format="PNG")
+    request = AskRequest(
+        image_base64=make_data_uri(output.getvalue()),
+        crop_box=CropBox(x=0, y=0, w=80, h=120),
+        rotation_degrees=90,
+        subject="circuit",
+    )
+
+    prepared = Image.open(BytesIO(processor.prepare(request)))
+
+    assert prepared.size == (80, 120)
+
+
+def test_chat_endpoint_keeps_flutter_contract(tmp_path) -> None:
+    fake_ai = FakeAiClient()
+    settings = Settings(
+        database_path=tmp_path / "chat.db",
+        ai_provider="ollama",
+        ai_model="unused-in-test",
+        ai_timeout_seconds=5,
+        ai_max_output_tokens=1024,
+        ollama_base_url="http://127.0.0.1:11434",
+        ai_api_base_url="",
+        ai_api_key="",
+        library_match_threshold=0.92,
+        max_image_bytes=1024 * 1024,
+    )
+    app = create_app(settings=settings, ai_client=fake_ai)
+    original = AskResponse(
+        request_id="req_chat",
+        source="ai",
+        similar_questions=[],
+        **solution().model_dump(),
+    )
+    payload = {
+        "image_base64": make_data_uri(make_image()),
+        "crop_box": {"x": 0, "y": 0, "w": 120, "h": 80},
+        "rotation_degrees": 0,
+        "subject": "circuit",
+        "original_response": original.model_dump(),
+        "messages": [],
+        "message": "R2 是 20Ω",
+    }
+
+    with TestClient(app) as client:
+        response = client.post("/api/v1/chat", json=payload)
+
+    assert response.status_code == 200
+    assert "R2 是 20Ω" in response.json()["answer"]
+    assert fake_ai.called

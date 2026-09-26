@@ -1,5 +1,12 @@
+import 'dart:io';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../models/ask_response.dart';
@@ -9,6 +16,8 @@ import '../widgets/confidence_badge.dart';
 import '../widgets/latex_text.dart';
 import '../widgets/similar_question_tile.dart';
 import '../widgets/step_card.dart';
+import 'chat_page.dart';
+import 'crop_page.dart';
 import 'home_page.dart';
 
 class ResultPage extends StatefulWidget {
@@ -20,7 +29,10 @@ class ResultPage extends StatefulWidget {
 
 class _ResultPageState extends State<ResultPage> {
   static const MethodChannel _shareChannel = MethodChannel('circuit_solver/share');
+  final GlobalKey _captureKey = GlobalKey();
+  final ImagePicker _picker = ImagePicker();
   bool _sharing = false;
+  bool _openingCamera = false;
 
   String _text(AskResponse response) {
     final StringBuffer buffer = StringBuffer()
@@ -53,9 +65,26 @@ class _ResultPageState extends State<ResultPage> {
     if (_sharing) return;
     setState(() => _sharing = true);
     try {
-      await _shareChannel.invokeMethod<void>('shareText', <String, String>{
+      final BuildContext? captureContext = _captureKey.currentContext;
+      final RenderObject? object = captureContext?.findRenderObject();
+      if (object is! RenderRepaintBoundary) {
+        throw PlatformException(code: 'CAPTURE_FAILED', message: '结果页面尚未准备完成');
+      }
+      final double ratio = math.min(
+        2,
+        math.max(1, 12000 / object.size.height),
+      ).toDouble();
+      final ui.Image image = await object.toImage(pixelRatio: ratio);
+      final ByteData? data = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      if (data == null) throw PlatformException(code: 'CAPTURE_FAILED', message: '无法生成结果长图');
+      final Directory directory = await getTemporaryDirectory();
+      final File file = File('${directory.path}${Platform.pathSeparator}circuit_result_${DateTime.now().millisecondsSinceEpoch}.png');
+      await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
+      await _shareChannel.invokeMethod<void>('shareImage', <String, String>{
         'subject': '电路题求解结果',
-        'text': _text(response),
+        'path': file.path,
+        'text': 'Circuit Solver 电路题求解结果',
       });
     } on PlatformException catch (error) {
       if (mounted) _message(error.message ?? '无法调起系统分享');
@@ -63,6 +92,29 @@ class _ResultPageState extends State<ResultPage> {
       if (mounted) _message('系统分享组件未正确配置');
     } finally {
       if (mounted) setState(() => _sharing = false);
+    }
+  }
+
+  Future<void> _continueWithCamera() async {
+    if (_openingCamera) return;
+    setState(() => _openingCamera = true);
+    try {
+      final XFile? file = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 100,
+        requestFullMetadata: false,
+      );
+      if (!mounted || file == null) return;
+      context.read<AskProvider>().reset();
+      await Navigator.of(context).pushAndRemoveUntil<void>(
+        MaterialPageRoute<void>(builder: (_) => CropPage(imagePath: file.path)),
+        (Route<dynamic> route) =>
+            route.settings.name == HomePage.routeName || route.isFirst,
+      );
+    } catch (error) {
+      if (mounted) _message('无法打开相机，请检查相机权限。');
+    } finally {
+      if (mounted) setState(() => _openingCamera = false);
     }
   }
 
@@ -135,9 +187,16 @@ class _ResultPageState extends State<ResultPage> {
       child: Column(
         children: <Widget>[
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-              children: <Widget>[
+            child: SingleChildScrollView(
+              child: RepaintBoundary(
+                key: _captureKey,
+                child: ColoredBox(
+                  color: const Color(0xFFF5F7FB),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
                 _answer(response),
                 if (provider.historyWarning != null) ...<Widget>[
                   const SizedBox(height: 12),
@@ -164,6 +223,32 @@ class _ResultPageState extends State<ResultPage> {
                   _title(Icons.warning_amber_rounded, '需要核对'),
                   _notice(response.uncertain.join('\n'), const Color(0xFFFFFBEB), const Color(0xFF92400E)),
                 ],
+                _title(Icons.forum_outlined, '对结果有疑问？'),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text('补充模糊条件、纠正识别内容，或让 AI 解释某一步。'),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: provider.hasQuestionContext
+                            ? () => Navigator.of(context).push<void>(
+                                  MaterialPageRoute<void>(builder: (_) => const ChatPage()),
+                                )
+                            : null,
+                        icon: const Icon(Icons.chat_bubble_outline_rounded),
+                        label: const Text('继续询问题目'),
+                      ),
+                    ],
+                  ),
+                ),
                 if (response.similarQuestions.isNotEmpty) ...<Widget>[
                   _title(Icons.quiz_outlined, '相似题'),
                   for (final question in response.similarQuestions)
@@ -176,7 +261,11 @@ class _ResultPageState extends State<ResultPage> {
                   const SizedBox(height: 20),
                   _notice(response.disclaimer, const Color(0xFFF1F5F9), const Color(0xFF64748B)),
                 ],
-              ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
           Container(
@@ -186,7 +275,15 @@ class _ResultPageState extends State<ResultPage> {
               children: <Widget>[
                 Expanded(child: OutlinedButton.icon(onPressed: () => _copy(response), icon: const Icon(Icons.copy_rounded), label: const Text('复制'))),
                 const SizedBox(width: 12),
-                Expanded(child: ElevatedButton.icon(onPressed: _home, icon: const Icon(Icons.add_a_photo_outlined), label: const Text('继续搜题'))),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _openingCamera ? null : _continueWithCamera,
+                    icon: _openingCamera
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.add_a_photo_outlined),
+                    label: const Text('继续搜题'),
+                  ),
+                ),
               ],
             ),
           ),

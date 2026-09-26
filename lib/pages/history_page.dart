@@ -1,10 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/history_item.dart';
 import '../services/history_service.dart';
+import '../providers/ask_provider.dart';
 import '../utils/error_handler.dart';
+import 'result_page.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -149,7 +152,15 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Widget _card(HistoryItem item) {
     final File file = File(item.imagePath);
-    return Container(
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {
+        context.read<AskProvider>().openHistory(item);
+        Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(builder: (_) => const ResultPage()),
+        );
+      },
+      child: Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -181,7 +192,9 @@ class _HistoryPageState extends State<HistoryPage> {
               ],
             ),
           ),
+          const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
         ],
+      ),
       ),
     );
   }

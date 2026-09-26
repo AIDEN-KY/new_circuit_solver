@@ -20,6 +20,7 @@ class _CropPageState extends State<CropPage> {
   static const double _minimumSize = 0.15;
   Rect _selection = const Rect.fromLTWH(0.08, 0.08, 0.84, 0.84);
   Size? _imageSize;
+  int _rotationDegrees = 0;
   bool _loading = true;
   String? _error;
 
@@ -122,7 +123,7 @@ class _CropPageState extends State<CropPage> {
   }
 
   Future<void> _confirm() async {
-    final Size? imageSize = _imageSize;
+    final Size? imageSize = _displayImageSize;
     if (imageSize == null) return;
     context.read<AskProvider>().prepareQuestion(
       imagePath: widget.imagePath,
@@ -132,6 +133,7 @@ class _CropPageState extends State<CropPage> {
         'w': (_selection.width * imageSize.width).round(),
         'h': (_selection.height * imageSize.height).round(),
       },
+      rotationDegrees: _rotationDegrees,
     );
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const LoadingPage()),
@@ -144,6 +146,11 @@ class _CropPageState extends State<CropPage> {
       appBar: AppBar(
         title: const Text('框选题目区域'),
         actions: <Widget>[
+          IconButton(
+            tooltip: '顺时针旋转 90°',
+            onPressed: _imageSize == null ? null : _rotate,
+            icon: const Icon(Icons.rotate_right_rounded),
+          ),
           IconButton(
             tooltip: '重置选框',
             onPressed: _imageSize == null
@@ -168,7 +175,7 @@ class _CropPageState extends State<CropPage> {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '拖动选框调整位置，拖动四个角调整大小。请完整框住题目条件。',
+                        '拖动选框调整位置，拖动四个角调整大小；可用右上角按钮旋转图片。',
                         style: TextStyle(color: Color(0xFF1E40AF)),
                       ),
                     ),
@@ -232,7 +239,7 @@ class _CropPageState extends State<CropPage> {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final Size available = Size(constraints.maxWidth, constraints.maxHeight);
-        final Rect imageRect = _containedRect(available, _imageSize!);
+        final Rect imageRect = _containedRect(available, _displayImageSize!);
         return ColoredBox(
           color: const Color(0xFF0F172A),
           child: Stack(
@@ -258,7 +265,12 @@ class _CropPageState extends State<CropPage> {
     return Stack(
       clipBehavior: Clip.none,
       children: <Widget>[
-        Positioned.fill(child: Image.file(File(widget.imagePath), fit: BoxFit.fill)),
+        Positioned.fill(
+          child: RotatedBox(
+            quarterTurns: _rotationDegrees ~/ 90,
+            child: Image.file(File(widget.imagePath), fit: BoxFit.fill),
+          ),
+        ),
         Positioned.fill(
           child: IgnorePointer(
             child: CustomPaint(painter: _CropPainter(rect)),
@@ -333,6 +345,21 @@ class _CropPageState extends State<CropPage> {
   }
 
   double mathMin(double a, double b) => a < b ? a : b;
+
+  Size? get _displayImageSize {
+    final Size? size = _imageSize;
+    if (size == null) return null;
+    return _rotationDegrees == 90 || _rotationDegrees == 270
+        ? Size(size.height, size.width)
+        : size;
+  }
+
+  void _rotate() {
+    setState(() {
+      _rotationDegrees = (_rotationDegrees + 90) % 360;
+      _selection = const Rect.fromLTWH(0.08, 0.08, 0.84, 0.84);
+    });
+  }
 }
 
 enum _ResizeHandle { topLeft, topRight, bottomLeft, bottomRight }

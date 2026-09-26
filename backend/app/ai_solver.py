@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+import json
 import re
 
 from pydantic import ValidationError
 
-from .models import AiSolution, CircuitExtraction
+from .models import AiSolution, AskResponse, ChatMessage, ChatResponse, CircuitExtraction
 from .providers.base import AiProvider, AiProviderRequest
 from .providers.errors import AiProviderResponseError
 
@@ -26,7 +27,9 @@ SOLUTION_SYSTEM_PROMPT = (
     "你是严谨的大学电工学教师。输入是已经从图片提取的结构化题目。"
     "必须仅依据该结构求解，不得添加不存在的参数。先重建拓扑并选择定理，先符号推导再代入数值，"
     "最后用独立代入、极性、数量级和单位检查复核。必须使用中文。每个包含公式或计算的步骤都要"
-    "填写latex；latex只写源码，不要Markdown围栏。最终答案、final_answer_latex和最后计算步骤"
+    "填写latex；latex只写源码，不要Markdown围栏。content中的物理量、变量、数值、单位及短公式"
+    "必须用单个美元符号包裹为行内LaTeX，例如 $R_1=20\\Omega$，中文说明保留普通文本。"
+    "最终答案、final_answer_latex和最后计算步骤"
     "必须完全一致。条件不足时不得编造数值，应降低confidence并写入uncertain。"
 )
 
@@ -41,6 +44,45 @@ class AiSolver:
         extraction = await self._extract(image_bytes)
         solution = await self._reason(extraction)
         return self._normalize_and_check(solution, extraction)
+
+    async def follow_up(
+        self,
+        image_bytes: bytes,
+        original_response: AskResponse,
+        messages: list[ChatMessage],
+        message: str,
+    ) -> ChatResponse:
+        """结合原图、原答案和用户补充信息继续答疑。"""
+        history = [item.model_dump() for item in messages[-20:]]
+        user_prompt = (
+            "请围绕同一道题回答用户的新问题。重新核对随附原图；如果用户补充或纠正了模糊条件，"
+            "应以用户的新信息为准并说明它对结论的影响。不要声称看到了图片中不存在的内容。"
+            "回答应简洁但包含必要推导。所有物理量、变量、数值、单位和公式都用单个美元符号"
+            "包裹为行内LaTeX，例如 $I=0.4\\,\\mathrm{A}$。\n\n"
+            f"原求解结果：\n{original_response.model_dump_json(indent=2)}\n\n"
+            f"此前对话：\n{json.dumps(history, ensure_ascii=False)}\n\n"
+            f"用户新问题：\n{message}"
+        )
+        result = await self._provider.generate(
+            AiProviderRequest(
+                image_bytes=image_bytes,
+                system_prompt=(
+                    "你是严谨、耐心的大学电工学教师。使用中文回答，只讨论当前题目。"
+                    "若信息仍不足，明确指出需要用户补充什么，不得编造条件。"
+                ),
+                user_prompt=user_prompt,
+                json_schema=ChatResponse.model_json_schema(),
+                structured_output_name="circuit_follow_up",
+                # 追问强调快速澄清；关闭思考模式可避免推理 token 吞完输出额度。
+                reasoning_effort="none",
+                max_output_tokens=4096,
+            )
+        )
+        self._log_result("follow_up", result.provider, result.model, result.elapsed_seconds)
+        try:
+            return ChatResponse.model_validate(result.payload)
+        except ValidationError as error:
+            raise AiProviderResponseError("AI追问结果不符合结构化协议") from error
 
     async def _extract(self, image_bytes: bytes) -> CircuitExtraction:
         result = await self._provider.generate(

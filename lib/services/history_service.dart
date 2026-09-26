@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/history_item.dart';
+import '../models/ask_response.dart';
 import '../utils/error_handler.dart';
 
 class HistoryService {
@@ -41,7 +42,9 @@ class HistoryService {
   Future<void> addHistory({
     required String id,
     required String imagePath,
-    required String finalAnswer,
+    required AskResponse response,
+    required Map<String, num> cropBox,
+    required int rotationDegrees,
   }) async {
     try {
       final String savedPath = await _copyImage(id, imagePath);
@@ -52,8 +55,11 @@ class HistoryService {
         HistoryItem(
           id: id,
           imagePath: savedPath,
-          finalAnswer: finalAnswer,
+          finalAnswer: response.finalAnswer,
           createdAt: DateTime.now(),
+          response: response,
+          cropBox: Map<String, num>.from(cropBox),
+          rotationDegrees: rotationDegrees,
         ),
       );
       final List<HistoryItem> removed = items.skip(maxCount).toList();

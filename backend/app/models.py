@@ -36,7 +36,10 @@ class SolutionStep(BaseModel):
 
     step_number: int = Field(ge=1)
     title: str = Field(min_length=1)
-    content: str = Field(min_length=1)
+    content: str = Field(
+        min_length=1,
+        description="中文说明；物理量、数字、单位和短公式必须用 $...$ 包裹",
+    )
     latex: str = ""
 
 
@@ -101,3 +104,27 @@ class AskResponse(AiSolution):
     request_id: str = Field(min_length=1)
     source: Literal["library", "ai"]
     similar_questions: list[SimilarQuestion] = Field(default_factory=list)
+
+
+class ChatMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ChatRequest(AskRequest):
+    """围绕一次识图结果继续追问，并重新附带原题图片供模型核对。"""
+
+    original_response: AskResponse
+    messages: list[ChatMessage] = Field(default_factory=list, max_length=20)
+    message: str = Field(min_length=1, max_length=2000)
+
+
+class ChatResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    answer: str = Field(
+        min_length=1,
+        description="中文回答；物理量、数字、单位和公式必须用 $...$ 包裹",
+    )

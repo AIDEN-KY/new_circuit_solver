@@ -16,7 +16,7 @@ class MockService {
         <String, dynamic>{
           'step_number': 1,
           'title': '识别电路',
-          'content': '图中电源电压为 12V，R1 为 10Ω，R2 为 20Ω，两个电阻串联。',
+          'content': r'图中电源电压为 $12\mathrm{V}$，$R_1=10\Omega$，$R_2=20\Omega$，两个电阻串联。',
           'latex': r'R_1 = 10\Omega,\quad R_2 = 20\Omega',
         },
         <String, dynamic>{

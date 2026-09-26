@@ -4,12 +4,20 @@ from typing import Protocol
 from uuid import uuid4
 
 from .image_processing import ImageProcessor
-from .models import AiSolution, AskRequest, AskResponse
+from .models import AiSolution, AskRequest, AskResponse, ChatRequest, ChatResponse
 from .repository import QuestionRepository
 
 
 class VisionSolver(Protocol):
     async def solve(self, image_bytes: bytes) -> AiSolution: ...
+
+    async def follow_up(
+        self,
+        image_bytes: bytes,
+        original_response: AskResponse,
+        messages: list,
+        message: str,
+    ) -> ChatResponse: ...
 
 
 class AskService:
@@ -51,3 +59,11 @@ class AskService:
             **solution.model_dump(),
         )
 
+    async def chat(self, request: ChatRequest) -> ChatResponse:
+        image_bytes = self._image_processor.prepare(request)
+        return await self._ai_client.follow_up(
+            image_bytes=image_bytes,
+            original_response=request.original_response,
+            messages=request.messages,
+            message=request.message,
+        )

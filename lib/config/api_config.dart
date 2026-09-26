@@ -18,6 +18,7 @@ class ApiConfig {
 
   static String get askUrl => '$baseUrl/api/v1/ask';
   static String get healthUrl => '$baseUrl/api/v1/health';
+  static String get chatUrl => '$baseUrl/api/v1/chat';
 
   static bool get hasValidBaseUrl {
     final Uri? uri = Uri.tryParse(baseUrl);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/solution_step.dart';
 import 'latex_text.dart';
+import 'mixed_latex_text.dart';
 
 class StepCard extends StatelessWidget {
   const StepCard({required this.step, super.key});
@@ -33,7 +34,10 @@ class StepCard extends StatelessWidget {
                 Text(step.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 if (step.content.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 8),
-                  SelectableText(step.content, style: const TextStyle(height: 1.5, color: Color(0xFF475569))),
+                  MixedLatexText(
+                    step.content,
+                    style: const TextStyle(height: 1.5, color: Color(0xFF475569)),
+                  ),
                 ],
                 if (step.latex.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 10),

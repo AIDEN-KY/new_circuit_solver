@@ -20,6 +20,9 @@ class ImageProcessor:
     def prepare(self, request: AskRequest) -> bytes:
         raw = self.decode_data_uri(request.image_base64)
         image = self._open(raw)
+        if request.rotation_degrees:
+            # Flutter 传入顺时针角度。先旋转整图，再按用户看到的坐标裁剪。
+            image = image.rotate(-request.rotation_degrees, expand=True)
         box = request.crop_box
         left = min(box.x, image.width)
         top = min(box.y, image.height)
@@ -29,9 +32,6 @@ class ImageProcessor:
             raise InvalidImageError("框选区域超出图片范围")
 
         cropped = image.crop((left, top, right, bottom))
-        if request.rotation_degrees:
-            # Flutter 传入顺时针角度，Pillow 的正值为逆时针。
-            cropped = cropped.rotate(-request.rotation_degrees, expand=True)
         output = BytesIO()
         cropped.save(output, format="JPEG", quality=90, optimize=True)
         return output.getvalue()

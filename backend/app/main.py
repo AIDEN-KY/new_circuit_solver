@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException
 from .ai_solver import AiSolver
 from .config import Settings
 from .image_processing import ImageProcessor, InvalidImageError
-from .models import AskRequest, AskResponse
+from .models import AskRequest, AskResponse, ChatRequest, ChatResponse
 from .repository import QuestionRepository
 from .service import AskService, VisionSolver
 from .providers import AiProviderError, create_ai_provider
@@ -43,7 +43,7 @@ def create_app(
 
     app = FastAPI(
         title="Circuit Solver API",
-        version="0.2.0",
+        version="0.3.0",
         lifespan=lifespan,
     )
 
@@ -63,6 +63,15 @@ def create_app(
     async def ask(request: AskRequest) -> AskResponse:
         try:
             return await service.ask(request)
+        except InvalidImageError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        except AiProviderError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+
+    @app.post("/api/v1/chat", response_model=ChatResponse)
+    async def chat(request: ChatRequest) -> ChatResponse:
+        try:
+            return await service.chat(request)
         except InvalidImageError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
         except AiProviderError as error:

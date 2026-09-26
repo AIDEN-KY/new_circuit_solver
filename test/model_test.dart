@@ -1,6 +1,8 @@
 import 'package:circuit_solver/models/ask_request.dart';
 import 'package:circuit_solver/models/ask_response.dart';
 import 'package:circuit_solver/models/backend_health.dart';
+import 'package:circuit_solver/models/chat_message.dart';
+import 'package:circuit_solver/models/history_item.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -56,5 +58,45 @@ void main() {
     expect(health.isReady, isTrue);
     expect(health.aiProvider, 'deepseek');
     expect(health.libraryQuestions, 3);
+  });
+
+  test('HistoryItem keeps the complete result and crop context', () {
+    final AskResponse response = AskResponse.fromJson(<String, dynamic>{
+      'request_id': 'req_history',
+      'source': 'ai',
+      'confidence': 'medium',
+      'final_answer': 'U = 7V',
+      'final_answer_latex': r'U=7\mathrm{V}',
+      'steps': <dynamic>[],
+      'knowledge_points': <dynamic>[],
+      'unit_check': <String, dynamic>{
+        'expected_unit': 'V',
+        'actual_unit': 'V',
+        'passed': true,
+        'note': '',
+      },
+      'similar_questions': <dynamic>[],
+      'uncertain': <dynamic>[],
+      'disclaimer': '请核对',
+    });
+    final HistoryItem restored = HistoryItem.fromJson(
+      HistoryItem(
+        id: 'history_1',
+        imagePath: '/tmp/question.jpg',
+        finalAnswer: response.finalAnswer,
+        createdAt: DateTime(2026, 9, 27),
+        response: response,
+        cropBox: const <String, num>{'x': 1, 'y': 2, 'w': 3, 'h': 4},
+        rotationDegrees: 90,
+      ).toJson(),
+    );
+    expect(restored.response?.requestId, 'req_history');
+    expect(restored.cropBox?['w'], 3);
+    expect(restored.rotationDegrees, 90);
+  });
+
+  test('ChatMessage uses backend roles', () {
+    const ChatMessage message = ChatMessage(role: 'user', content: 'R2 是 20Ω');
+    expect(ChatMessage.fromJson(message.toJson()).isUser, isTrue);
   });
 }
