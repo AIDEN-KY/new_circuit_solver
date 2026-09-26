@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../models/ask_request.dart';
 import '../models/ask_response.dart';
+import '../models/backend_health.dart';
 import '../services/api_service.dart';
 import '../services/history_service.dart';
 import '../services/mock_service.dart';
@@ -54,6 +55,9 @@ class AskProvider extends ChangeNotifier {
   int rotationDegrees = 0;
   int dailyRemaining = dailyLimit;
   bool quotaLoaded = false;
+  BackendHealth? backendHealth;
+  String? backendHealthError;
+  bool checkingBackend = false;
 
   bool get useMock => ApiConfig.useMock;
   bool get isLoading => <AskStatus>{
@@ -90,6 +94,31 @@ class AskProvider extends ChangeNotifier {
 
   Future<void> setUseMock(bool value) async {
     await ApiConfig.updateUseMock(value);
+    notifyListeners();
+    if (!value && ApiConfig.hasValidBaseUrl) {
+      unawaited(checkBackendHealth());
+    }
+  }
+
+  Future<void> checkBackendHealth() async {
+    if (checkingBackend) return;
+    checkingBackend = true;
+    backendHealth = null;
+    backendHealthError = null;
+    notifyListeners();
+    try {
+      backendHealth = await _apiService.checkHealth();
+    } catch (error) {
+      backendHealthError = ErrorHandler.messageFor(error);
+    } finally {
+      checkingBackend = false;
+      notifyListeners();
+    }
+  }
+
+  void clearBackendHealth() {
+    backendHealth = null;
+    backendHealthError = null;
     notifyListeners();
   }
 

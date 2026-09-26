@@ -13,6 +13,16 @@ from .service import AskService, VisionSolver
 from .providers import AiProviderError, create_ai_provider
 
 
+def _is_ai_configured(settings: Settings) -> bool:
+    if not settings.ai_model:
+        return False
+    if settings.ai_provider == "ollama":
+        return bool(settings.ollama_base_url)
+    if settings.ai_provider in {"deepseek", "openai_compatible"}:
+        return bool(settings.ai_api_base_url and settings.ai_api_key)
+    return False
+
+
 def create_app(
     settings: Settings | None = None,
     ai_client: VisionSolver | None = None,
@@ -33,9 +43,21 @@ def create_app(
 
     app = FastAPI(
         title="Circuit Solver API",
-        version="0.1.0",
+        version="0.2.0",
         lifespan=lifespan,
     )
+
+    @app.get("/api/v1/health")
+    async def health() -> dict[str, object]:
+        """供测试版 App 检测服务状态；不返回 API Key 等敏感配置。"""
+        return {
+            "status": "ok",
+            "version": app.version,
+            "ai_provider": resolved.ai_provider,
+            "ai_model": resolved.ai_model,
+            "ai_configured": _is_ai_configured(resolved),
+            "library_questions": repository.count_publishable(),
+        }
 
     @app.post("/api/v1/ask", response_model=AskResponse)
     async def ask(request: AskRequest) -> AskResponse:

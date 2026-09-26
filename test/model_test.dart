@@ -1,5 +1,6 @@
 import 'package:circuit_solver/models/ask_request.dart';
 import 'package:circuit_solver/models/ask_response.dart';
+import 'package:circuit_solver/models/backend_health.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -41,5 +42,19 @@ void main() {
     });
     expect(response.steps.single.stepNumber, 1);
     expect(response.unitCheck.passed, isTrue);
+  });
+
+  test('BackendHealth parses safe service status', () {
+    final BackendHealth health = BackendHealth.fromJson(<String, dynamic>{
+      'status': 'ok',
+      'version': '0.2.0',
+      'ai_provider': 'deepseek',
+      'ai_model': 'deepseek-flash',
+      'ai_configured': true,
+      'library_questions': 3,
+    });
+    expect(health.isReady, isTrue);
+    expect(health.aiProvider, 'deepseek');
+    expect(health.libraryQuestions, 3);
   });
 }

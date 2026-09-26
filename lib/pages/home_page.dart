@@ -25,6 +25,15 @@ class _HomePageState extends State<HomePage> {
   bool _isUpdatingMode = false;
   String? _error;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ApiConfig.useMock || !ApiConfig.hasValidBaseUrl) return;
+      context.read<AskProvider>().checkBackendHealth();
+    });
+  }
+
   Future<void> _pick(ImageSource source) async {
     if (_isPicking) return;
     setState(() {
@@ -63,6 +72,15 @@ class _HomePageState extends State<HomePage> {
       if (mounted) setState(() => _error = ErrorHandler.messageFor(error));
     } finally {
       if (mounted) setState(() => _isUpdatingMode = false);
+    }
+  }
+
+  Future<void> _openSettings() async {
+    await Navigator.pushNamed(context, SettingsPage.routeName);
+    if (!mounted) return;
+    final AskProvider provider = context.read<AskProvider>();
+    if (!provider.useMock && ApiConfig.hasValidBaseUrl) {
+      await provider.checkBackendHealth();
     }
   }
 
@@ -142,6 +160,10 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 22),
                       if (AppEnvironment.showDeveloperTools)
                         _mockCard(provider),
+                      if (!provider.useMock) ...<Widget>[
+                        const SizedBox(height: 14),
+                        _realServiceCard(provider),
+                      ],
                       const SizedBox(height: 22),
                       _tipsCard(),
                     ],
@@ -176,7 +198,7 @@ class _HomePageState extends State<HomePage> {
               if (index == 1) {
                 Navigator.pushNamed(context, HistoryPage.routeName);
               } else if (index == 2) {
-                Navigator.pushNamed(context, SettingsPage.routeName);
+                _openSettings();
               }
             },
             destinations: const <NavigationDestination>[
@@ -363,6 +385,62 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       );
+
+  Widget _realServiceCard(AskProvider provider) {
+    final health = provider.backendHealth;
+    final bool ready = health?.isReady ?? false;
+    final Color color = ready
+        ? const Color(0xFF15803D)
+        : const Color(0xFFB45309);
+    final String title = provider.checkingBackend
+        ? '正在检测真实服务'
+        : ready
+            ? '后端已连接，AI 配置完整'
+            : '真实服务尚未就绪';
+    final String subtitle = provider.checkingBackend
+        ? '正在连接 ${ApiConfig.baseUrl}'
+        : ready
+            ? '${health!.aiProvider}/${health.aiModel} · 题库 ${health.libraryQuestions} 道'
+            : (provider.backendHealthError ??
+                (ApiConfig.hasValidBaseUrl ? '点击重试连接' : '请先在设置中填写后端地址'));
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: <Widget>[
+          if (provider.checkingBackend)
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: color),
+            )
+          else
+            Icon(ready ? Icons.cloud_done_rounded : Icons.cloud_off_rounded, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 3),
+                Text(subtitle, style: const TextStyle(fontSize: 12, height: 1.35)),
+              ],
+            ),
+          ),
+          if (!provider.checkingBackend && ApiConfig.hasValidBaseUrl)
+            IconButton(
+              tooltip: '重新检测',
+              onPressed: provider.checkBackendHealth,
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+        ],
+      ),
+    );
+  }
 
   Widget _messageCard(String message, bool error) => Container(
         padding: const EdgeInsets.all(14),

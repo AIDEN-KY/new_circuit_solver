@@ -183,6 +183,18 @@ class QuestionRepository:
             response=AskResponse.model_validate(json.loads(row["response_json"])),
         )
 
+    def count_publishable(self) -> int:
+        """返回当前可以被用户检索到的已审核题目数量。"""
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM questions
+                WHERE is_publishable = 1 AND review_status = 'approved'
+                """
+            ).fetchone()
+        return int(row["total"] if row is not None else 0)
+
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self._database_path, timeout=10)
         connection.row_factory = sqlite3.Row

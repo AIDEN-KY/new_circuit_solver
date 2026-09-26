@@ -219,6 +219,36 @@ def test_http_api_returns_flutter_contract(tmp_path) -> None:
     assert body["unit_check"]["passed"] is True
 
 
+def test_health_endpoint_reports_safe_service_status(tmp_path) -> None:
+    settings = Settings(
+        database_path=tmp_path / "health.db",
+        ai_provider="deepseek",
+        ai_model="deepseek-flash",
+        ai_timeout_seconds=5,
+        ai_max_output_tokens=1024,
+        ollama_base_url="http://127.0.0.1:11434",
+        ai_api_base_url="https://api.example.test",
+        ai_api_key="secret-for-test",
+        library_match_threshold=0.92,
+        max_image_bytes=1024 * 1024,
+    )
+    app = create_app(settings=settings, ai_client=FakeAiClient())
+
+    with TestClient(app) as client:
+        response = client.get("/api/v1/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "version": "0.2.0",
+        "ai_provider": "deepseek",
+        "ai_model": "deepseek-flash",
+        "ai_configured": True,
+        "library_questions": 0,
+    }
+    assert "secret-for-test" not in response.text
+
+
 def test_http_api_rejects_invalid_crop(tmp_path) -> None:
     settings = Settings(
         database_path=tmp_path / "invalid.db",

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../config/api_config.dart';
 import '../config/app_environment.dart';
+import '../providers/ask_provider.dart';
 import '../utils/error_handler.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -46,6 +48,7 @@ class _SettingsPageState extends State<SettingsPage> {
     });
     try {
       await ApiConfig.updateBaseUrl(_controller.text);
+      if (mounted) context.read<AskProvider>().clearBackendHealth();
       _controller.text = ApiConfig.baseUrl;
       if (mounted) {
         setState(() {
@@ -65,8 +68,17 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _testConnection() async {
+    FocusScope.of(context).unfocus();
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    await _save();
+    if (!mounted || _isError || !ApiConfig.hasValidBaseUrl) return;
+    await context.read<AskProvider>().checkBackendHealth();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final AskProvider provider = context.watch<AskProvider>();
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
       body: SafeArea(
@@ -115,9 +127,30 @@ class _SettingsPageState extends State<SettingsPage> {
                           : const Icon(Icons.save_outlined),
                       label: Text(_saving ? '正在保存' : '保存设置'),
                     ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: _saving || provider.checkingBackend
+                          ? null
+                          : _testConnection,
+                      icon: provider.checkingBackend
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.wifi_tethering_rounded),
+                      label: Text(
+                        provider.checkingBackend ? '正在检测连接' : '保存并检测连接',
+                      ),
+                    ),
                   ],
                 ),
                 ),
+                if (provider.backendHealth != null ||
+                    provider.backendHealthError != null) ...<Widget>[
+                  const SizedBox(height: 12),
+                  _backendStatusCard(provider),
+                ],
               ] else
                 Container(
                   padding: const EdgeInsets.all(18),
@@ -153,7 +186,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: <Widget>[
                     const ListTile(leading: Icon(Icons.electrical_services_rounded), title: Text('电路识图搜题'), subtitle: Text('circuit_solver')),
                     const Divider(height: 1),
-                    const ListTile(leading: Icon(Icons.numbers_rounded), title: Text('版本号'), trailing: Text('1.2.0')),
+                    const ListTile(leading: Icon(Icons.numbers_rounded), title: Text('版本号'), trailing: Text('1.3.0')),
                     const Divider(height: 1),
                     const ListTile(leading: Icon(Icons.school_outlined), title: Text('当前支持'), trailing: Text('电工学电路图')),
                     const Divider(height: 1),
@@ -164,6 +197,51 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _backendStatusCard(AskProvider provider) {
+    final health = provider.backendHealth;
+    final bool ready = health?.isReady ?? false;
+    final bool online = health != null;
+    final Color color = ready
+        ? const Color(0xFF15803D)
+        : online
+            ? const Color(0xFFB45309)
+            : const Color(0xFFDC2626);
+    final String title = ready
+        ? '后端已连接，AI 配置完整'
+        : online
+            ? '后端在线，但 AI 尚未配置完整'
+            : '无法连接后端';
+    final String detail = health == null
+        ? (provider.backendHealthError ?? '连接失败')
+        : 'API ${health.version} · ${health.aiProvider}/${health.aiModel}\n'
+            '可发布题库 ${health.libraryQuestions} 道';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.28)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(ready ? Icons.cloud_done_rounded : Icons.cloud_off_rounded, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(detail, style: const TextStyle(height: 1.4)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

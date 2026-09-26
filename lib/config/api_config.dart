@@ -17,6 +17,7 @@ class ApiConfig {
   static const Duration receiveTimeout = Duration(minutes: 8);
 
   static String get askUrl => '$baseUrl/api/v1/ask';
+  static String get healthUrl => '$baseUrl/api/v1/health';
 
   static bool get hasValidBaseUrl {
     final Uri? uri = Uri.tryParse(baseUrl);

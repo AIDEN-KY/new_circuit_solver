@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../models/ask_request.dart';
 import '../models/ask_response.dart';
+import '../models/backend_health.dart';
 import '../utils/error_handler.dart';
 
 class ApiService {
@@ -20,6 +21,24 @@ class ApiService {
             ));
 
   final Dio _dio;
+
+  Future<BackendHealth> checkHealth() async {
+    if (!ApiConfig.hasValidBaseUrl) {
+      throw const AppException('尚未配置有效的后端地址，请先前往设置。');
+    }
+    try {
+      final Response<dynamic> response = await _dio.get<dynamic>(
+        ApiConfig.healthUrl,
+        options: Options(
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+      return BackendHealth.fromJson(_parseResponse(response.data));
+    } catch (error) {
+      throw ErrorHandler.toAppException(error);
+    }
+  }
 
   Future<AskResponse> ask(AskRequest request) async {
     if (!ApiConfig.hasValidBaseUrl) {
