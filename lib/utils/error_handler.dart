@@ -68,7 +68,10 @@ class ErrorHandler {
         return const AppException('请求已取消。');
       case DioExceptionType.badResponse:
         final int? code = error.response?.statusCode;
-        if (code == 400) return const AppException('请求参数无效，请重新框选。');
+        final String? serverMessage = _serverMessage(error.response?.data);
+        if (code == 400) {
+          return AppException(serverMessage ?? '请求参数无效，请重新框选。');
+        }
         if (code == 401 || code == 403) {
           return const AppException('接口拒绝访问，请联系服务管理员。');
         }
@@ -76,11 +79,19 @@ class ErrorHandler {
         if (code == 413) return const AppException('上传图片过大。');
         if (code == 429) return const AppException('请求过于频繁，请稍后再试。');
         if (code != null && code >= 500) {
-          return const AppException('服务器暂时不可用，请稍后重试。');
+          return AppException(serverMessage ?? '服务器暂时不可用，请稍后重试。');
         }
         return AppException('服务器返回异常${code == null ? '' : '（$code）'}。');
       case DioExceptionType.unknown:
         return const AppException('网络请求失败，请稍后重试。');
     }
+  }
+
+  static String? _serverMessage(dynamic data) {
+    if (data is Map) {
+      final dynamic detail = data['detail'];
+      if (detail is String && detail.trim().isNotEmpty) return detail.trim();
+    }
+    return null;
   }
 }

@@ -1,0 +1,43 @@
+workflows:
+  android-tester-release:
+    name: Circuit Solver Tester Release APK
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      flutter: stable
+      android_signing:
+        - circuit_solver_tester_signing
+    scripts:
+      - name: Extract application source
+        script: unzip -o circuit_solver_source.zip -d .
+      - name: Generate Android platform files
+        script: |
+          flutter create --platforms=android --org com.example --project-name circuit_solver .
+          rm -f test/widget_test.dart
+          mkdir -p android/app/src/main/kotlin/com/example/circuit_solver
+          cp tool/android/MainActivity.kt android/app/src/main/kotlin/com/example/circuit_solver/MainActivity.kt
+          cp tool/android/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Analyze project
+        script: flutter analyze --no-fatal-infos
+      - name: Run tests
+        script: flutter test
+      - name: Build optimized tester APK
+        script: flutter build apk --release --split-per-abi --dart-define=APP_ENV=tester
+      - name: Sign tester APKs with fixed key
+        script: |
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort | tail -n 1)"
+          test -n "$APKSIGNER"
+          for APK in build/app/outputs/flutter-apk/*-release.apk; do
+            "$APKSIGNER" sign \
+              --ks "$CM_KEYSTORE_PATH" \
+              --ks-type PKCS12 \
+              --ks-key-alias "$CM_KEY_ALIAS" \
+              --ks-pass "env:CM_KEYSTORE_PASSWORD" \
+              --key-pass "env:CM_KEY_PASSWORD" \
+              "$APK"
+            "$APKSIGNER" verify --verbose --print-certs "$APK"
+          done
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk

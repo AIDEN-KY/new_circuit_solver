@@ -13,7 +13,17 @@ import '../services/mock_service.dart';
 import '../utils/error_handler.dart';
 import '../utils/image_utils.dart';
 
-enum AskStatus { idle, preparingImage, uploading, savingHistory, success, error }
+enum AskStatus {
+  idle,
+  preparingImage,
+  uploading,
+  recognizingCircuit,
+  solvingCircuit,
+  validatingResult,
+  savingHistory,
+  success,
+  error,
+}
 
 class AskProvider extends ChangeNotifier {
   AskProvider({
@@ -33,6 +43,7 @@ class AskProvider extends ChangeNotifier {
   final ApiService _apiService;
   final MockService _mockService;
   final HistoryService _historyService;
+  Timer? _stageTimer;
 
   AskStatus status = AskStatus.idle;
   AskResponse? response;
@@ -48,20 +59,29 @@ class AskProvider extends ChangeNotifier {
   bool get isLoading => <AskStatus>{
         AskStatus.preparingImage,
         AskStatus.uploading,
+        AskStatus.recognizingCircuit,
+        AskStatus.solvingCircuit,
+        AskStatus.validatingResult,
         AskStatus.savingHistory,
       }.contains(status);
 
   double get progress => switch (status) {
         AskStatus.preparingImage => 0.2,
-        AskStatus.uploading => 0.65,
-        AskStatus.savingHistory => 0.9,
+        AskStatus.uploading => 0.3,
+        AskStatus.recognizingCircuit => 0.45,
+        AskStatus.solvingCircuit => 0.68,
+        AskStatus.validatingResult => 0.86,
+        AskStatus.savingHistory => 0.94,
         AskStatus.success => 1,
         _ => 0,
       };
 
   String get statusMessage => switch (status) {
         AskStatus.preparingImage => '正在压缩题目图片',
-        AskStatus.uploading => useMock ? '正在生成模拟结果' : '正在识别并求解',
+        AskStatus.uploading => useMock ? '正在生成模拟结果' : '正在上传题目',
+        AskStatus.recognizingCircuit => '正在识别题干和电路结构',
+        AskStatus.solvingCircuit => '正在推导并计算答案',
+        AskStatus.validatingResult => '正在检查步骤和最终答案',
         AskStatus.savingHistory => '正在保存历史记录',
         AskStatus.success => '识别完成',
         AskStatus.error => errorMessage ?? '识别失败',
@@ -118,9 +138,12 @@ class AskProvider extends ChangeNotifier {
       );
       status = AskStatus.uploading;
       notifyListeners();
-      final AskResponse result = useMock
+      final bool requestUsesMock = useMock;
+      if (!requestUsesMock) _startRealProgress();
+      final AskResponse result = requestUsesMock
           ? await _mockService.ask(request)
           : await _apiService.ask(request);
+      _stopRealProgress();
       response = result;
       status = AskStatus.savingHistory;
       notifyListeners();
@@ -133,10 +156,19 @@ class AskProvider extends ChangeNotifier {
       } catch (error) {
         historyWarning = '答案已生成，但历史记录保存失败：${ErrorHandler.messageFor(error)}';
       }
-      if (!useMock) await _consumeQuota();
+      if (!requestUsesMock) {
+        try {
+          await _consumeQuota();
+        } catch (error) {
+          _appendHistoryWarning(
+            '答案已生成，但本次额度记录失败：${ErrorHandler.messageFor(error)}',
+          );
+        }
+      }
       status = AskStatus.success;
       notifyListeners();
     } catch (error) {
+      _stopRealProgress();
       _setError(ErrorHandler.messageFor(error));
     }
   }
@@ -217,5 +249,44 @@ class AskProvider extends ChangeNotifier {
     errorMessage = message;
     status = AskStatus.error;
     notifyListeners();
+  }
+
+  void _appendHistoryWarning(String message) {
+    historyWarning = historyWarning == null
+        ? message
+        : '$historyWarning\n$message';
+  }
+
+  void _startRealProgress() {
+    _stopRealProgress();
+    int elapsedSeconds = 0;
+    _stageTimer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      elapsedSeconds++;
+      final AskStatus nextStatus = switch (elapsedSeconds) {
+        >= 25 => AskStatus.validatingResult,
+        >= 7 => AskStatus.solvingCircuit,
+        >= 2 => AskStatus.recognizingCircuit,
+        _ => AskStatus.uploading,
+      };
+      if (!isLoading || status == AskStatus.savingHistory) {
+        _stopRealProgress();
+        return;
+      }
+      if (status != nextStatus) {
+        status = nextStatus;
+        notifyListeners();
+      }
+    });
+  }
+
+  void _stopRealProgress() {
+    _stageTimer?.cancel();
+    _stageTimer = null;
+  }
+
+  @override
+  void dispose() {
+    _stopRealProgress();
+    super.dispose();
   }
 }

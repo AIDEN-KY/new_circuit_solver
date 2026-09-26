@@ -1,0 +1,25 @@
+{
+  "confidence": "high",
+  "final_answer": "R_ab = 171/85 Ω ≈ 2.012 Ω，I = 128/171 A ≈ 0.749 A",
+  "final_answer_latex": "R_{ab}=\\frac{171}{85}\\,\\Omega\\approx2.012\\,\\Omega,\\quad I=\\frac{128}{171}\\,\\mathrm{A}\\approx0.749\\,\\mathrm{A}",
+  "steps": [
+    {
+      "step_number": 1,
+      "title": "详细解析待审核",
+      "content": "当前仅登记教材给出的标准最终答案，尚未录入可发布的完整推导过程。",
+      "latex": ""
+    }
+  ],
+  "knowledge_points": ["电阻串并联", "梯形电阻网络", "等效电阻"],
+  "unit_check": {
+    "expected_unit": "Ω、A",
+    "actual_unit": "Ω、A",
+    "passed": true,
+    "note": "最终答案已由用户更正并确认，当前仅核对单位。"
+  },
+  "uncertain": ["完整解题过程待人工审核后补充。"],
+  "disclaimer": "该记录目前仅用于回归测试，尚未作为正式题库解析发布。",
+  "request_id": "seed_q_1_6_12",
+  "source": "library",
+  "similar_questions": []
+}

@@ -1,0 +1,25 @@
+{
+  "confidence": "high",
+  "final_answer": "U_ab = 7 V",
+  "final_answer_latex": "U_{ab}=7\\,\\mathrm{V}",
+  "steps": [
+    {
+      "step_number": 1,
+      "title": "详细解析待审核",
+      "content": "当前仅登记教材给出的标准最终答案，尚未录入可发布的完整推导过程。",
+      "latex": ""
+    }
+  ],
+  "knowledge_points": ["线性电路", "叠加定理", "理想电压源置零"],
+  "unit_check": {
+    "expected_unit": "V",
+    "actual_unit": "V",
+    "passed": true,
+    "note": "仅核对教材最终答案的单位。"
+  },
+  "uncertain": ["完整解题过程待人工审核后补充。"],
+  "disclaimer": "该记录目前仅用于回归测试，尚未作为正式题库解析发布。",
+  "request_id": "seed_q_1_9_8",
+  "source": "library",
+  "similar_questions": []
+}

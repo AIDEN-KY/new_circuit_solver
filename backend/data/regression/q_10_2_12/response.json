@@ -1,0 +1,25 @@
+{
+  "confidence": "high",
+  "final_answer": "A_u1 ≈ -1，A_u2 ≈ 1；r_o1 ≈ 2 kΩ，r_o2 ≈ 21.4 Ω",
+  "final_answer_latex": "A_{u1}\\approx-1,\\quad A_{u2}\\approx1;\\quad r_{o1}\\approx2\\,\\mathrm{k}\\Omega,\\quad r_{o2}\\approx21.4\\,\\Omega",
+  "steps": [
+    {
+      "step_number": 1,
+      "title": "详细解析待审核",
+      "content": "当前仅登记教材给出的标准最终答案，尚未录入可发布的完整推导过程。",
+      "latex": ""
+    }
+  ],
+  "knowledge_points": ["晶体管放大电路", "共射极输出", "射极跟随器", "输出电阻"],
+  "unit_check": {
+    "expected_unit": "无量纲、Ω",
+    "actual_unit": "无量纲、Ω",
+    "passed": true,
+    "note": "仅核对教材最终答案的单位。"
+  },
+  "uncertain": ["完整解题过程待人工审核后补充。"],
+  "disclaimer": "该记录目前仅用于回归测试，尚未作为正式题库解析发布。",
+  "request_id": "seed_q_10_2_12",
+  "source": "library",
+  "similar_questions": []
+}

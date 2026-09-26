@@ -13,7 +13,8 @@ class ApiConfig {
 
   static const Duration connectTimeout = Duration(seconds: 30);
   static const Duration sendTimeout = Duration(seconds: 30);
-  static const Duration receiveTimeout = Duration(seconds: 30);
+  // 本地视觉模型在低配置电脑上可能需要数分钟，连接与上传仍保持 30 秒限制。
+  static const Duration receiveTimeout = Duration(minutes: 8);
 
   static String get askUrl => '$baseUrl/api/v1/ask';
 

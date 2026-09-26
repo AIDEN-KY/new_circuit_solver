@@ -87,7 +87,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: <Widget>[
                     const Text('Base URL', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
-                    const Text('填写服务器根地址，不要包含 /api/v1/ask。', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                    const Text(
+                      '填写服务器根地址，不要包含 /api/v1/ask。安卓模拟器访问本机可填写 '
+                      'http://10.0.2.2:8000；真机需要填写电脑的局域网地址。DeepSeek密钥只配置在后端。',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.45),
+                    ),
                     const SizedBox(height: 14),
                     TextFormField(
                       controller: _controller,
@@ -149,7 +153,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: <Widget>[
                     const ListTile(leading: Icon(Icons.electrical_services_rounded), title: Text('电路识图搜题'), subtitle: Text('circuit_solver')),
                     const Divider(height: 1),
-                    const ListTile(leading: Icon(Icons.numbers_rounded), title: Text('版本号'), trailing: Text('1.1.0')),
+                    const ListTile(leading: Icon(Icons.numbers_rounded), title: Text('版本号'), trailing: Text('1.2.0')),
                     const Divider(height: 1),
                     const ListTile(leading: Icon(Icons.school_outlined), title: Text('当前支持'), trailing: Text('电工学电路图')),
                     const Divider(height: 1),
