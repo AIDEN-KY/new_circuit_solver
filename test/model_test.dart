@@ -1,4 +1,5 @@
 import 'package:circuit_solver/models/ask_request.dart';
+import 'package:circuit_solver/models/account_activity.dart';
 import 'package:circuit_solver/models/ask_response.dart';
 import 'package:circuit_solver/models/backend_health.dart';
 import 'package:circuit_solver/models/chat_message.dart';
@@ -54,10 +55,12 @@ void main() {
       'ai_model': 'deepseek-flash',
       'ai_configured': true,
       'library_questions': 3,
+      'auth_required': true,
     });
     expect(health.isReady, isTrue);
     expect(health.aiProvider, 'deepseek');
     expect(health.libraryQuestions, 3);
+    expect(health.authRequired, isTrue);
   });
 
   test('HistoryItem keeps the complete result and crop context', () {
@@ -98,5 +101,20 @@ void main() {
   test('ChatMessage uses backend roles', () {
     const ChatMessage message = ChatMessage(role: 'user', content: 'R2 是 20Ω');
     expect(ChatMessage.fromJson(message.toJson()).isUser, isTrue);
+  });
+
+  test('AccountActivity parses server-side quota changes', () {
+    final AccountActivity activity = AccountActivity.fromJson(
+      <String, dynamic>{
+        'id': 1,
+        'event_type': 'register_bonus',
+        'free_uses_delta': 3,
+        'balance_fen_delta': 0,
+        'created_at': 1790438400,
+      },
+    );
+    expect(activity.title, '新用户赠送');
+    expect(activity.freeUsesDelta, 3);
+    expect(activity.isPositive, isTrue);
   });
 }

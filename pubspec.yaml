@@ -1,7 +1,7 @@
 name: circuit_solver
 description: An Android app for solving electrical circuit questions from photos.
 publish_to: "none"
-version: 1.4.0+6
+version: 1.6.1+9
 
 environment:
   sdk: ">=3.3.0 <4.0.0"

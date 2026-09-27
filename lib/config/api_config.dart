@@ -7,6 +7,8 @@ class ApiConfig {
 
   static const String _baseUrlKey = 'api_base_url';
   static const String _useMockKey = 'use_mock_data';
+  static const String _testerRealModeMigrationKey =
+      'tester_real_mode_migration_v1';
 
   static String baseUrl = '';
   static bool useMock = true;
@@ -19,6 +21,12 @@ class ApiConfig {
   static String get askUrl => '$baseUrl/api/v1/ask';
   static String get healthUrl => '$baseUrl/api/v1/health';
   static String get chatUrl => '$baseUrl/api/v1/chat';
+  static String get registerUrl => '$baseUrl/api/v1/auth/register';
+  static String get loginUrl => '$baseUrl/api/v1/auth/login';
+  static String get logoutUrl => '$baseUrl/api/v1/auth/logout';
+  static String get accountUrl => '$baseUrl/api/v1/account/me';
+  static String get accountActivitiesUrl =>
+      '$baseUrl/api/v1/account/activities';
 
   static bool get hasValidBaseUrl {
     final Uri? uri = Uri.tryParse(baseUrl);
@@ -36,7 +44,19 @@ class ApiConfig {
     final SharedPreferences preferences =
         await SharedPreferences.getInstance();
     baseUrl = _normalize(preferences.getString(_baseUrlKey) ?? '');
-    useMock = preferences.getBool(_useMockKey) ?? true;
+    // 测试包默认走真实后端，避免用户已经配置 DeepSeek 却无意间看到固定 Mock 答案。
+    // 开发调试包仍保留 Mock 默认值，便于离线开发和 UI 调试。
+    // 1.6.0 之前的测试包可能已经保存了 Mock 状态，这里只迁移一次；
+    // 迁移完成后用户仍可在首页手动切回 Mock 模式。
+    final bool migrated =
+        preferences.getBool(_testerRealModeMigrationKey) ?? false;
+    if (AppEnvironment.isTester && !migrated) {
+      await preferences.setBool(_useMockKey, false);
+      await preferences.setBool(_testerRealModeMigrationKey, true);
+      useMock = false;
+    } else {
+      useMock = preferences.getBool(_useMockKey) ?? !AppEnvironment.isTester;
+    }
   }
 
   static Future<void> updateBaseUrl(String value) async {

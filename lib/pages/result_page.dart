@@ -302,6 +302,11 @@ class _ResultPageState extends State<ResultPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Row(children: <Widget>[const Expanded(child: Text('最终答案', style: TextStyle(color: Color(0xFFDBEAFE), fontWeight: FontWeight.w600))), ConfidenceBadge(confidence: response.confidence)]),
+            const SizedBox(height: 8),
+            Text(
+              _sourceLabel(response.source),
+              style: const TextStyle(color: Color(0xFFBFDBFE), fontSize: 12),
+            ),
             const SizedBox(height: 18),
             SelectableText(response.finalAnswer.isEmpty ? '未返回明确答案' : response.finalAnswer, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
             if (response.finalAnswerLatex.isNotEmpty) ...<Widget>[
@@ -315,6 +320,19 @@ class _ResultPageState extends State<ResultPage> {
           ],
         ),
       );
+
+  String _sourceLabel(String source) {
+    switch (source.toLowerCase()) {
+      case 'library':
+        return '来源：题库标准答案';
+      case 'ai':
+        return '来源：AI 识别与解题';
+      case 'mock':
+        return '来源：Mock 演示数据（不代表真实识别结果）';
+      default:
+        return source.isEmpty ? '来源：未说明' : '来源：$source';
+    }
+  }
 
   Widget _title(IconData icon, String text) => Padding(
         padding: const EdgeInsets.only(top: 26, bottom: 12),

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Circuit Solver 管理后台</title>
+  <style>
+    body{font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;max-width:920px;margin:32px auto;padding:0 16px;background:#f6f7fb;color:#202124}
+    section{background:#fff;border-radius:14px;padding:20px;margin:16px 0;box-shadow:0 2px 12px #00000010}
+    input,button{font:inherit;padding:10px 12px;margin:4px;border:1px solid #d8dbe5;border-radius:8px}button{cursor:pointer;background:#315bea;color:#fff;border:0}button.secondary{background:#eef1ff;color:#315bea}.hidden{display:none}table{border-collapse:collapse;width:100%;margin-top:12px}th,td{text-align:left;padding:10px;border-bottom:1px solid #eee}.muted{color:#697386}.error{color:#b42318}.success{color:#147d45}
+  </style>
+</head>
+<body>
+  <h1>Circuit Solver 管理后台</h1>
+  <p class="muted">仅供内测管理员使用。请通过 HTTPS 和受保护的网络访问。</p>
+  <section id="loginBox"><h2>管理员登录</h2><input id="adminName" placeholder="管理员账号"><input id="adminPassword" type="password" placeholder="管理员密码"><button onclick="login()">登录</button><p id="loginMessage" class="error"></p></section>
+  <section id="panel" class="hidden">
+    <button class="secondary" onclick="logout()">退出登录</button>
+    <h2>用户查询</h2><input id="keyword" placeholder="用户ID或用户名"><button onclick="searchUsers()">查询</button><p id="message"></p>
+    <table><thead><tr><th>用户ID</th><th>用户名</th><th>剩余次数</th><th>操作</th></tr></thead><tbody id="users"></tbody></table>
+  </section>
+  <script>
+    let token = sessionStorage.getItem('admin_token') || '';
+    const $ = id => document.getElementById(id);
+    function setLoggedIn(value){ $('loginBox').classList.toggle('hidden',value); $('panel').classList.toggle('hidden',!value); }
+    setLoggedIn(Boolean(token));
+    async function login(){
+      const r=await fetch('/api/v1/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('adminName').value,password:$('adminPassword').value})});
+      const data=await r.json(); if(!r.ok){$('loginMessage').textContent=data.detail||'登录失败';return;} token=data.access_token;sessionStorage.setItem('admin_token',token);setLoggedIn(true);
+    }
+    async function searchUsers(){
+      const r=await fetch('/api/v1/admin/users?keyword='+encodeURIComponent($('keyword').value),{headers:{Authorization:'Bearer '+token}}); const data=await r.json();
+      if(!r.ok){$('message').className='error';$('message').textContent=data.detail||'查询失败';return;}
+      $('message').textContent='';$('users').innerHTML=data.map(u=>`<tr><td><code>${u.id}</code></td><td>${u.username}</td><td>${u.free_uses_remaining}</td><td><button onclick="grant('${u.id}')">增加次数</button></td></tr>`).join('');
+    }
+    async function grant(id){
+      const uses=Number(prompt('增加多少次？','10')); if(!Number.isInteger(uses)||uses<=0)return; const ref=prompt('填写转账/核验流水号（不可重复）','qq-'+Date.now()); if(!ref)return; const note=prompt('备注','QQ群人工核验')||'';
+      const r=await fetch('/api/v1/admin/users/'+id+'/grant-uses',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({uses,reference_id:ref,note})}); const data=await r.json();
+      $('message').className=r.ok?'success':'error';$('message').textContent=r.ok?'授权成功，当前剩余 '+data.free_uses_remaining+' 次':(data.detail||'授权失败'); if(r.ok)searchUsers();
+    }
+    async function logout(){if(token)await fetch('/api/v1/admin/logout',{method:'POST',headers:{Authorization:'Bearer '+token}});token='';sessionStorage.removeItem('admin_token');setLoggedIn(false);}
+  </script>
+</body>
+</html>

@@ -10,6 +10,25 @@
 6. 将结构化电路交给第二阶段进行纯文本推理，避免识图与计算互相干扰。
 7. 服务端检查目标量覆盖、步骤与最终数值一致性、单位和置信度，再返回统一结构。
 
+用户请求必须携带登录后的 Bearer Token。账号次数保存在服务端 SQLite：新用户默认赠送3次，
+每次成功搜题扣1次；AI或图片处理失败会自动退回预占次数。客户端显示值不参与鉴权和扣减，
+因此修改 App 或清除本地数据不能绕过服务端次数。App 不处理付款结果。
+用户可通过 `GET /api/v1/account/activities` 查看注册赠送、搜题预扣和失败退回记录；该接口同样必须登录。
+
+小范围内测人工核对完成后，管理员可在后端目录执行：
+
+```powershell
+python -m app.grant_uses --user-id "用户ID" --uses 10 `
+  --operator "管理员编号" --reference "唯一业务流水号" --note "内测人工发放"
+```
+
+`reference` 在数据库中唯一，同一业务流水号重复执行不会二次到账。完整运营边界和风险见
+`docs/manual_quota_operation.md`。
+
+## Admin 管理后台
+
+配置 `ADMIN_USERNAME` 和 `ADMIN_PASSWORD` 后启动服务，打开 `/admin`。后台支持按用户ID/用户名查询、人工增加次数和查看用户额度变动。每次人工授权必须提供唯一 `reference_id`，重复流水号会被拒绝。生产环境必须使用 HTTPS，并限制后台访问来源。
+
 业务层不直接依赖 Ollama。`AI_PROVIDER=ollama` 使用本地模型；也可切换为
 `AI_PROVIDER=deepseek` 或 `AI_PROVIDER=openai_compatible`，无需修改 Flutter App 或题库检索流程。云端模式还必须
 配置 `AI_API_BASE_URL`、`AI_API_KEY` 和支持图片输入、JSON Schema 的 `AI_MODEL`。

@@ -72,9 +72,12 @@ class ErrorHandler {
         if (code == 400) {
           return AppException(serverMessage ?? '请求参数无效，请重新框选。');
         }
-        if (code == 401 || code == 403) {
-          return const AppException('接口拒绝访问，请联系服务管理员。');
+        if (code == 401) return AppException(serverMessage ?? '登录已失效，请重新登录。');
+        if (code == 402) {
+          return AppException(serverMessage ?? '剩余搜题次数不足，请联系内测管理员。');
         }
+        if (code == 403) return const AppException('当前账号无权执行此操作。');
+        if (code == 409) return AppException(serverMessage ?? '该账号信息已存在。');
         if (code == 404) return const AppException('未找到识别接口，请检查后端地址。');
         if (code == 413) return const AppException('上传图片过大。');
         if (code == 429) return const AppException('请求过于频繁，请稍后再试。');

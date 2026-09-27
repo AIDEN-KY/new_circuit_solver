@@ -5,10 +5,13 @@ import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import '../config/app_environment.dart';
 import '../providers/ask_provider.dart';
+import '../providers/auth_provider.dart';
 import '../utils/error_handler.dart';
 import 'crop_page.dart';
 import 'history_page.dart';
 import 'settings_page.dart';
+import 'account_page.dart';
+import 'login_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -36,6 +39,10 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _pick(ImageSource source) async {
     if (_isPicking) return;
+    if (!ApiConfig.useMock && !context.read<AuthProvider>().isAuthenticated) {
+      await Navigator.pushNamed(context, LoginPage.routeName);
+      return;
+    }
     setState(() {
       _isPicking = true;
       _error = null;
@@ -68,6 +75,9 @@ class _HomePageState extends State<HomePage> {
     });
     try {
       await context.read<AskProvider>().setUseMock(value);
+      if (!value && mounted && !context.read<AuthProvider>().isAuthenticated) {
+        await Navigator.pushNamed(context, LoginPage.routeName);
+      }
     } catch (error) {
       if (mounted) setState(() => _error = ErrorHandler.messageFor(error));
     } finally {
@@ -86,12 +96,23 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AskProvider>(
-      builder: (BuildContext context, AskProvider provider, Widget? child) {
+    return Consumer2<AskProvider, AuthProvider>(
+      builder: (BuildContext context, AskProvider provider,
+          AuthProvider auth, Widget? child) {
         return Scaffold(
           appBar: AppBar(
             title: const Text('电路搜题'),
             actions: <Widget>[
+              IconButton(
+                tooltip: '我的账号',
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  AccountPage.routeName,
+                ),
+                icon: Icon(auth.isAuthenticated
+                    ? Icons.account_circle_rounded
+                    : Icons.account_circle_outlined),
+              ),
               if (AppEnvironment.showDeveloperTools)
                 Padding(
                   padding: const EdgeInsets.only(right: 16),
@@ -179,9 +200,9 @@ class _HomePageState extends State<HomePage> {
                   child: Text(
                     provider.useMock
                         ? 'Mock 模式不消耗次数'
-                        : provider.quotaLoaded
-                            ? '今日剩余 ${provider.dailyRemaining} / ${AskProvider.dailyLimit} 次'
-                            : '正在读取今日额度',
+                        : auth.profile == null
+                            ? '请先登录后使用真实搜题'
+                            : '剩余搜题次数 ${auth.profile!.freeUsesRemaining} 次',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Color(0xFF475569),
@@ -400,7 +421,7 @@ class _HomePageState extends State<HomePage> {
     final String subtitle = provider.checkingBackend
         ? '正在连接 ${ApiConfig.baseUrl}'
         : ready
-            ? '${health!.aiProvider}/${health.aiModel} · 题库 ${health.libraryQuestions} 道'
+            ? '${health!.aiProvider}/${health.aiModel} · 题库 ${health.libraryQuestions} 道 · ${health.authRequired ? '账号保护已开启' : '兼容模式'}'
             : (provider.backendHealthError ??
                 (ApiConfig.hasValidBaseUrl ? '点击重试连接' : '请先在设置中填写后端地址'));
     return Container(

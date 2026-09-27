@@ -28,6 +28,12 @@ class Settings:
     library_match_threshold: float
     max_image_bytes: int
     ai_reasoning_effort: str = "none"
+    auth_required: bool = False
+    initial_free_uses: int = 3
+    solve_price_fen: int = 10
+    session_days: int = 30
+    admin_username: str = ""
+    admin_password: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -53,4 +59,11 @@ class Settings:
             library_match_threshold=threshold,
             max_image_bytes=int(os.getenv("MAX_IMAGE_BYTES", str(8 * 1024 * 1024))),
             ai_reasoning_effort=reasoning_effort,
+            auth_required=os.getenv("AUTH_REQUIRED", "true").strip().lower()
+            not in {"0", "false", "no", "off"},
+            initial_free_uses=max(0, int(os.getenv("INITIAL_FREE_USES", "3"))),
+            solve_price_fen=max(1, int(os.getenv("SOLVE_PRICE_FEN", "10"))),
+            session_days=max(1, int(os.getenv("SESSION_DAYS", "30"))),
+            admin_username=os.getenv("ADMIN_USERNAME", "").strip(),
+            admin_password=os.getenv("ADMIN_PASSWORD", ""),
         )

@@ -8,6 +8,7 @@ import '../models/ask_response.dart';
 import '../models/backend_health.dart';
 import '../models/chat_message.dart';
 import '../utils/error_handler.dart';
+import 'auth_service.dart';
 
 class ApiService {
   ApiService({Dio? dio})
@@ -49,6 +50,7 @@ class ApiService {
       final Response<dynamic> response = await _dio.post<dynamic>(
         ApiConfig.askUrl,
         data: request.toJson(),
+        options: Options(headers: AuthService.authorizationHeaders),
       );
       return AskResponse.fromJson(_parseResponse(response.data));
     } catch (error) {
@@ -75,6 +77,7 @@ class ApiService {
       final Response<dynamic> response = await _dio.post<dynamic>(
         ApiConfig.chatUrl,
         data: payload,
+        options: Options(headers: AuthService.authorizationHeaders),
       );
       final Map<String, dynamic> json = _parseResponse(response.data);
       return ChatMessage(

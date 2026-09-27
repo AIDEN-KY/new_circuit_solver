@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../config/api_config.dart';
+import '../providers/auth_provider.dart';
 import 'home_page.dart';
+import 'login_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -19,9 +23,17 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _openHome() async {
-    await Future<void>.delayed(const Duration(seconds: 2));
+    await Future.wait<void>(<Future<void>>[
+      Future<void>.delayed(const Duration(seconds: 2)),
+      context.read<AuthProvider>().initialize(),
+    ]);
     if (!mounted) return;
-    await Navigator.of(context).pushReplacementNamed(HomePage.routeName);
+    final AuthProvider auth = context.read<AuthProvider>();
+    await Navigator.of(context).pushReplacementNamed(
+      ApiConfig.useMock || auth.isAuthenticated
+          ? HomePage.routeName
+          : LoginPage.routeName,
+    );
   }
 
   @override

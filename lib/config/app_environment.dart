@@ -13,6 +13,8 @@ class AppEnvironment {
 
   static bool get isProduction => name == 'production';
 
+  static bool get isTester => name == 'tester';
+
   static bool get showDeveloperTools => !isProduction;
 
   static String get versionLabel => isProduction ? '正式版' : '内部测试版';

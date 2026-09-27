@@ -186,7 +186,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: <Widget>[
                     const ListTile(leading: Icon(Icons.electrical_services_rounded), title: Text('电路识图搜题'), subtitle: Text('circuit_solver')),
                     const Divider(height: 1),
-                    const ListTile(leading: Icon(Icons.numbers_rounded), title: Text('版本号'), trailing: Text('1.4.0')),
+                    const ListTile(leading: Icon(Icons.numbers_rounded), title: Text('版本号'), trailing: Text('1.6.1')),
                     const Divider(height: 1),
                     const ListTile(leading: Icon(Icons.school_outlined), title: Text('当前支持'), trailing: Text('电工学电路图')),
                     const Divider(height: 1),

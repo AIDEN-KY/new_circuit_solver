@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/api_config.dart';
 import '../models/ask_request.dart';
@@ -35,17 +34,12 @@ class AskProvider extends ChangeNotifier {
     HistoryService? historyService,
   })  : _apiService = apiService ?? ApiService(),
         _mockService = mockService ?? const MockService(),
-        _historyService = historyService ?? HistoryService.instance {
-    unawaited(_loadQuota());
-  }
-
-  static const int dailyLimit = 5;
-  static const String _dateKey = 'daily_quota_date';
-  static const String _remainingKey = 'daily_quota_remaining';
+        _historyService = historyService ?? HistoryService.instance;
 
   final ApiService _apiService;
   final MockService _mockService;
   final HistoryService _historyService;
+  Future<void> Function()? onRealAskSucceeded;
   Timer? _stageTimer;
 
   AskStatus status = AskStatus.idle;
@@ -55,8 +49,6 @@ class AskProvider extends ChangeNotifier {
   String? imagePath;
   Map<String, num>? cropBox;
   int rotationDegrees = 0;
-  int dailyRemaining = dailyLimit;
-  bool quotaLoaded = false;
   BackendHealth? backendHealth;
   String? backendHealthError;
   bool checkingBackend = false;
@@ -154,11 +146,6 @@ class AskProvider extends ChangeNotifier {
       _setError('没有可识别的题目，请返回首页重新选择。');
       return;
     }
-    if (!useMock && dailyRemaining <= 0) {
-      _setError('今天的 5 次真实识别额度已用完，请明天再试。');
-      return;
-    }
-
     response = null;
     errorMessage = null;
     historyWarning = null;
@@ -198,10 +185,10 @@ class AskProvider extends ChangeNotifier {
       }
       if (!requestUsesMock) {
         try {
-          await _consumeQuota();
+          await onRealAskSucceeded?.call();
         } catch (error) {
           _appendHistoryWarning(
-            '答案已生成，但本次额度记录失败：${ErrorHandler.messageFor(error)}',
+            '答案已生成，但账号额度刷新失败：${ErrorHandler.messageFor(error)}',
           );
         }
       }
@@ -343,41 +330,6 @@ class AskProvider extends ChangeNotifier {
           'disclaimer': '该记录由旧版本保存，仅可查看当时的最终答案。',
         },
       );
-
-  Future<void> _loadQuota() async {
-    try {
-      final SharedPreferences preferences =
-          await SharedPreferences.getInstance();
-      final String today = _formatDate(DateTime.now());
-      if (preferences.getString(_dateKey) != today) {
-        dailyRemaining = dailyLimit;
-        await preferences.setString(_dateKey, today);
-        await preferences.setInt(_remainingKey, dailyLimit);
-      } else {
-        dailyRemaining = (preferences.getInt(_remainingKey) ?? dailyLimit)
-            .clamp(0, dailyLimit)
-            .toInt();
-      }
-    } catch (_) {
-      // 本地额度读取失败时使用默认值，不阻塞搜题流程。
-      dailyRemaining = dailyLimit;
-    } finally {
-      quotaLoaded = true;
-      notifyListeners();
-    }
-  }
-
-  Future<void> _consumeQuota() async {
-    if (dailyRemaining <= 0) return;
-    dailyRemaining--;
-    final SharedPreferences preferences =
-        await SharedPreferences.getInstance();
-    await preferences.setString(_dateKey, _formatDate(DateTime.now()));
-    await preferences.setInt(_remainingKey, dailyRemaining);
-  }
-
-  String _formatDate(DateTime date) =>
-      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
   void _setError(String message) {
     errorMessage = message;

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+import re
 
 
 class CropBox(BaseModel):
@@ -128,3 +129,84 @@ class ChatResponse(BaseModel):
         min_length=1,
         description="中文回答；物理量、数字、单位和公式必须用 $...$ 包裹",
     )
+
+
+class CredentialsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    username: str = Field(min_length=3, max_length=32)
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, value: str) -> str:
+        normalized = value.strip()
+        if not re.fullmatch(r"[A-Za-z0-9_\-\u4e00-\u9fff]+", normalized):
+            raise ValueError("用户名只能包含中英文、数字、下划线和短横线")
+        return normalized
+
+
+class AccountProfile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    username: str
+    free_uses_remaining: int = Field(ge=0)
+    balance_fen: int = Field(ge=0)
+    solve_price_fen: int = Field(gt=0)
+
+
+class AccountActivity(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int = Field(ge=1)
+    event_type: Literal[
+        "register_bonus",
+        "solve_reserved",
+        "solve_committed",
+        "solve_refunded",
+        "recharge",
+        "adjustment",
+    ]
+    free_uses_delta: int
+    balance_fen_delta: int
+    created_at: int = Field(gt=0)
+
+
+class AuthResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    account: AccountProfile
+
+
+class AdminLoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class AdminLoginResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    access_token: str
+    username: str
+
+
+class AdminGrantRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    uses: int = Field(gt=0, le=100000)
+    reference_id: str = Field(min_length=1, max_length=128)
+    note: str = Field(default="", max_length=500)
+
+
+class AdminUserSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    username: str
+    free_uses_remaining: int
+    created_at: int

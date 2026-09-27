@@ -4,9 +4,13 @@ import 'package:provider/provider.dart';
 import 'config/api_config.dart';
 import 'pages/history_page.dart';
 import 'pages/home_page.dart';
+import 'pages/account_page.dart';
+import 'pages/login_page.dart';
+import 'pages/register_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/splash_page.dart';
 import 'providers/ask_provider.dart';
+import 'providers/auth_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,8 +27,18 @@ class CircuitSolverApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<AskProvider>(
-      create: (_) => AskProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, AskProvider>(
+          create: (_) => AskProvider(),
+          update: (_, AuthProvider auth, AskProvider? ask) {
+            final AskProvider provider = ask ?? AskProvider();
+            provider.onRealAskSucceeded = auth.refreshProfile;
+            return provider;
+          },
+        ),
+      ],
       child: MaterialApp(
         title: '电路识图搜题',
         debugShowCheckedModeBanner: false,
@@ -82,6 +96,9 @@ class CircuitSolverApp extends StatelessWidget {
           HomePage.routeName: (_) => const HomePage(),
           HistoryPage.routeName: (_) => const HistoryPage(),
           SettingsPage.routeName: (_) => const SettingsPage(),
+          LoginPage.routeName: (_) => const LoginPage(),
+          RegisterPage.routeName: (_) => const RegisterPage(),
+          AccountPage.routeName: (_) => const AccountPage(),
         },
       ),
     );

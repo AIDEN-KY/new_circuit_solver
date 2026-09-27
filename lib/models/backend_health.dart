@@ -6,6 +6,7 @@ class BackendHealth {
     required this.aiModel,
     required this.aiConfigured,
     required this.libraryQuestions,
+    required this.authRequired,
   });
 
   final String status;
@@ -14,6 +15,7 @@ class BackendHealth {
   final String aiModel;
   final bool aiConfigured;
   final int libraryQuestions;
+  final bool authRequired;
 
   bool get isReady => status == 'ok' && aiConfigured;
 
@@ -25,6 +27,7 @@ class BackendHealth {
       aiModel: json['ai_model']?.toString() ?? '',
       aiConfigured: json['ai_configured'] == true,
       libraryQuestions: (json['library_questions'] as num?)?.toInt() ?? 0,
+      authRequired: json['auth_required'] == true,
     );
   }
 }

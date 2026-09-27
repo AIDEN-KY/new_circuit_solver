@@ -8,7 +8,7 @@ class MockService {
     await Future<void>.delayed(const Duration(seconds: 2));
     return AskResponse.fromJson(<String, dynamic>{
       'request_id': 'req_mock_${DateTime.now().millisecondsSinceEpoch}',
-      'source': 'library',
+      'source': 'mock',
       'confidence': 'high',
       'final_answer': 'I = 0.4A',
       'final_answer_latex': r'I = 0.4\text{A}',
