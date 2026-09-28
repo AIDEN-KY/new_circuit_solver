@@ -6,6 +6,7 @@ import '../config/api_config.dart';
 import '../config/app_environment.dart';
 import '../providers/ask_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/app_config_provider.dart';
 import '../utils/error_handler.dart';
 import 'crop_page.dart';
 import 'history_page.dart';
@@ -37,8 +38,15 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Future<void> _pick(ImageSource source) async {
+  Future<void> _pick(ImageSource source, {String nextMode = 'photo'}) async {
     if (_isPicking) return;
+    final AppConfigProvider appConfig = context.read<AppConfigProvider>();
+    if (!appConfig.canSolve) {
+      setState(() => _error = appConfig.requiresUpgrade
+          ? '当前版本过低，请先更新应用。'
+          : (appConfig.config?.maintenanceMessage ?? '服务维护中，请稍后再试。'));
+      return;
+    }
     if (!ApiConfig.useMock && !context.read<AuthProvider>().isAuthenticated) {
       await Navigator.pushNamed(context, LoginPage.routeName);
       return;
@@ -57,7 +65,7 @@ class _HomePageState extends State<HomePage> {
       context.read<AskProvider>().reset();
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
-          builder: (_) => CropPage(imagePath: file.path),
+          builder: (_) => CropPage(imagePath: file.path, nextMode: nextMode),
         ),
       );
     } catch (error) {
@@ -88,6 +96,8 @@ class _HomePageState extends State<HomePage> {
   Future<void> _openSettings() async {
     await Navigator.pushNamed(context, SettingsPage.routeName);
     if (!mounted) return;
+    await context.read<AppConfigProvider>().refresh();
+    if (!mounted) return;
     final AskProvider provider = context.read<AskProvider>();
     if (!provider.useMock && ApiConfig.hasValidBaseUrl) {
       await provider.checkBackendHealth();
@@ -96,6 +106,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final AppConfigProvider appConfig = context.watch<AppConfigProvider>();
     return Consumer2<AskProvider, AuthProvider>(
       builder: (BuildContext context, AskProvider provider,
           AuthProvider auth, Widget? child) {
@@ -145,6 +156,19 @@ class _HomePageState extends State<HomePage> {
                     padding: const EdgeInsets.all(20),
                     children: <Widget>[
                       _introCard(),
+                      if (appConfig.config?.announcementEnabled == true) ...<Widget>[
+                        const SizedBox(height: 14),
+                        _messageCard('${appConfig.config!.announcementTitle}\n${appConfig.config!.announcementMessage}', false),
+                      ],
+                      if (!appConfig.canSolve) ...<Widget>[
+                        const SizedBox(height: 14),
+                        _messageCard(
+                          appConfig.requiresUpgrade
+                              ? '当前版本过低，请更新到 ${appConfig.config?.latestVersion ?? '最新版'} 后继续使用。\n${appConfig.config?.downloadUrl ?? ''}'
+                              : (appConfig.config?.maintenanceMessage ?? '服务维护中，请稍后再试。'),
+                          true,
+                        ),
+                      ],
                       if (_error != null) ...<Widget>[
                         const SizedBox(height: 14),
                         _messageCard(_error!, true),
@@ -168,7 +192,7 @@ class _HomePageState extends State<HomePage> {
                         title: '拍照搜题',
                         subtitle: '使用相机拍摄电路题目',
                         filled: true,
-                        onTap: _isPicking ? null : () => _pick(ImageSource.camera),
+                        onTap: _isPicking || !appConfig.canSolve ? null : () => _pick(ImageSource.camera),
                       ),
                       const SizedBox(height: 14),
                       _actionButton(
@@ -176,7 +200,27 @@ class _HomePageState extends State<HomePage> {
                         title: '从相册选择',
                         subtitle: '选择已有的电路题图片',
                         filled: false,
-                        onTap: _isPicking ? null : () => _pick(ImageSource.gallery),
+                        onTap: _isPicking || !appConfig.canSolve ? null : () => _pick(ImageSource.gallery),
+                      ),
+                      const SizedBox(height: 14),
+                      _actionButton(
+                        icon: Icons.edit_note_rounded,
+                        title: '识别不清？用文字描述',
+                        subtitle: '拍照后补充元件、连接和已知条件',
+                        filled: false,
+                        onTap: _isPicking || !appConfig.canSolve
+                            ? null
+                            : () => _pick(ImageSource.camera, nextMode: 'description'),
+                      ),
+                      const SizedBox(height: 14),
+                      _actionButton(
+                        icon: Icons.forum_outlined,
+                        title: '交互式补充信息',
+                        subtitle: '通过多轮问答逐步补全电路条件',
+                        filled: false,
+                        onTap: _isPicking || !appConfig.canSolve
+                            ? null
+                            : () => _pick(ImageSource.camera, nextMode: 'interactive'),
                       ),
                       const SizedBox(height: 22),
                       if (AppEnvironment.showDeveloperTools)
@@ -202,7 +246,9 @@ class _HomePageState extends State<HomePage> {
                         ? 'Mock 模式不消耗次数'
                         : auth.profile == null
                             ? '请先登录后使用真实搜题'
-                            : '剩余搜题次数 ${auth.profile!.freeUsesRemaining} 次',
+                            : auth.profile!.freeUsesRemaining > 0
+                                ? '剩余搜题次数 ${auth.profile!.freeUsesRemaining} 次'
+                                : (appConfig.config?.supportMessage ?? '次数已用完，请联系内测管理员。'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Color(0xFF475569),
@@ -281,7 +327,7 @@ class _HomePageState extends State<HomePage> {
             ),
             SizedBox(height: 8),
             Text(
-              '框选题目区域，获取答案、步骤、知识点与相似题。',
+              '框选题目区域，获取 AI 答案、步骤与知识点。',
               style: TextStyle(color: Color(0xFFE3E7FF), height: 1.5),
             ),
           ],
@@ -421,7 +467,7 @@ class _HomePageState extends State<HomePage> {
     final String subtitle = provider.checkingBackend
         ? '正在连接 ${ApiConfig.baseUrl}'
         : ready
-            ? '${health!.aiProvider}/${health.aiModel} · 题库 ${health.libraryQuestions} 道 · ${health.authRequired ? '账号保护已开启' : '兼容模式'}'
+            ? '${health!.aiProvider}/${health.aiModel} · ${health.authRequired ? '账号保护已开启' : '兼容模式'}'
             : (provider.backendHealthError ??
                 (ApiConfig.hasValidBaseUrl ? '点击重试连接' : '请先在设置中填写后端地址'));
     return Container(

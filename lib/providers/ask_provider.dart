@@ -9,6 +9,7 @@ import '../models/ask_response.dart';
 import '../models/backend_health.dart';
 import '../models/chat_message.dart';
 import '../models/history_item.dart';
+import '../models/spice_netlist.dart';
 import '../services/api_service.dart';
 import '../services/history_service.dart';
 import '../services/mock_service.dart';
@@ -55,6 +56,10 @@ class AskProvider extends ChangeNotifier {
   final List<ChatMessage> chatMessages = <ChatMessage>[];
   bool sendingChat = false;
   String? chatError;
+  String? _clientRequestId;
+  String inputMode = 'photo';
+  String inputDescription = '';
+  String clarificationText = '';
 
   bool get useMock => ApiConfig.useMock;
   bool get hasQuestionContext =>
@@ -122,19 +127,26 @@ class AskProvider extends ChangeNotifier {
   }
 
   void prepareQuestion({
-    required String imagePath,
+    String? imagePath,
     required Map<String, num> cropBox,
     int rotationDegrees = 0,
+    String inputMode = 'photo',
+    String description = '',
+    String clarificationText = '',
   }) {
     this.imagePath = imagePath;
     this.cropBox = Map<String, num>.from(cropBox);
     this.rotationDegrees = rotationDegrees;
+    this.inputMode = inputMode;
+    inputDescription = description;
+    this.clarificationText = clarificationText;
     response = null;
     errorMessage = null;
     historyWarning = null;
     chatMessages.clear();
     chatError = null;
     status = AskStatus.idle;
+    _clientRequestId = 'ask-${DateTime.now().microsecondsSinceEpoch}';
     notifyListeners();
   }
 
@@ -142,7 +154,8 @@ class AskProvider extends ChangeNotifier {
     if (isLoading) return;
     final String? sourcePath = imagePath;
     final Map<String, num>? selectedBox = cropBox;
-    if (sourcePath == null || sourcePath.isEmpty || selectedBox == null) {
+    if ((inputMode == 'photo' && (sourcePath == null || sourcePath.isEmpty)) ||
+        selectedBox == null) {
       _setError('没有可识别的题目，请返回首页重新选择。');
       return;
     }
@@ -153,13 +166,18 @@ class AskProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final PreparedImage image =
-          await ImageUtils.compressAndEncode(sourcePath);
+      final PreparedImage? image = sourcePath == null || sourcePath.isEmpty
+          ? null
+          : await ImageUtils.compressAndEncode(sourcePath);
       final AskRequest request = AskRequest(
-        imageBase64: image.dataUri,
-        cropBox: _scaleCropBox(selectedBox, image),
+        imageBase64: image?.dataUri ?? '',
+        cropBox: image == null ? selectedBox : _scaleCropBox(selectedBox, image),
         rotationDegrees: rotationDegrees,
         subject: 'circuit',
+        inputMode: inputMode,
+        description: inputDescription,
+        clarificationText: clarificationText,
+        clientRequestId: _clientRequestId,
       );
       status = AskStatus.uploading;
       notifyListeners();
@@ -169,13 +187,20 @@ class AskProvider extends ChangeNotifier {
           ? await _mockService.ask(request)
           : await _apiService.ask(request);
       _stopRealProgress();
+      if (!requestUsesMock && !result.netlist.validationPassed) {
+        final String detail = result.netlist.validationMessages.isEmpty
+            ? 'AI 未能生成可校验的 SPICE 网表。'
+            : result.netlist.validationMessages.join('；');
+        _setError('电路模型校验未通过：$detail');
+        return;
+      }
       response = result;
       status = AskStatus.savingHistory;
       notifyListeners();
       try {
         await _historyService.addHistory(
           id: '${result.requestId}_${DateTime.now().millisecondsSinceEpoch}',
-          imagePath: image.filePath,
+          imagePath: image?.filePath ?? '',
           response: result,
           cropBox: request.cropBox,
           rotationDegrees: request.rotationDegrees,
@@ -240,13 +265,28 @@ class AskProvider extends ChangeNotifier {
         ));
       } else {
         final AskRequest request = await _createRequest();
-        final ChatMessage answer = await _apiService.chat(
+        final ChatReply reply = await _apiService.chat(
           request: request,
           originalResponse: original,
           messages: history,
           message: message,
         );
-        chatMessages.add(answer);
+        if (reply.intent == 'modify_circuit' && reply.updatedNetlist != null) {
+          final SpiceNetlist netlist = reply.updatedNetlist!;
+          if (!netlist.validationPassed) {
+            chatError = netlist.validationMessages.isEmpty
+                ? '修改后的电路网表校验未通过。'
+                : '修改后的电路网表校验未通过：${netlist.validationMessages.join('；')}';
+          } else if (response != null) {
+            final AskResponse? recalculated = reply.recalculatedResponse;
+            if (recalculated != null && !recalculated.netlist.validationPassed) {
+              chatError = '重新求解结果的网表校验未通过，已保留原结果。';
+            } else {
+              response = recalculated ?? response!.copyWith(netlist: netlist);
+            }
+          }
+        }
+        chatMessages.add(ChatMessage(role: 'assistant', content: reply.answer));
       }
     } catch (error) {
       chatError = ErrorHandler.messageFor(error);
@@ -266,6 +306,10 @@ class AskProvider extends ChangeNotifier {
     imagePath = null;
     cropBox = null;
     rotationDegrees = 0;
+    inputMode = 'photo';
+    inputDescription = '';
+    clarificationText = '';
+    _clientRequestId = null;
     notifyListeners();
   }
 
@@ -301,19 +345,25 @@ class AskProvider extends ChangeNotifier {
   }
 
   Future<AskRequest> _createRequest() async {
-    final PreparedImage image = await ImageUtils.compressAndEncode(imagePath!);
+    final PreparedImage? image = imagePath == null || imagePath!.isEmpty
+        ? null
+        : await ImageUtils.compressAndEncode(imagePath!);
     return AskRequest(
-      imageBase64: image.dataUri,
-      cropBox: _scaleCropBox(cropBox!, image),
+      imageBase64: image?.dataUri ?? '',
+      cropBox: image == null ? cropBox! : _scaleCropBox(cropBox!, image),
       rotationDegrees: rotationDegrees,
       subject: 'circuit',
+      inputMode: inputMode,
+      description: inputDescription,
+      clarificationText: clarificationText,
+      clientRequestId: _clientRequestId,
     );
   }
 
   AskResponse _legacyHistoryResponse(HistoryItem item) => AskResponse.fromJson(
         <String, dynamic>{
           'request_id': item.id,
-          'source': 'library',
+          'source': 'ai',
           'confidence': 'low',
           'final_answer': item.finalAnswer,
           'final_answer_latex': '',

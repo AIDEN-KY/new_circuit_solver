@@ -1,5 +1,6 @@
 import 'similar_question.dart';
 import 'solution_step.dart';
+import 'spice_netlist.dart';
 import 'unit_check.dart';
 
 class AskResponse {
@@ -15,6 +16,7 @@ class AskResponse {
     required this.similarQuestions,
     required this.uncertain,
     required this.disclaimer,
+    this.netlist = const SpiceNetlist(),
   });
 
   final String requestId;
@@ -28,6 +30,22 @@ class AskResponse {
   final List<SimilarQuestion> similarQuestions;
   final List<String> uncertain;
   final String disclaimer;
+  final SpiceNetlist netlist;
+
+  AskResponse copyWith({SpiceNetlist? netlist}) => AskResponse(
+        requestId: requestId,
+        source: source,
+        confidence: confidence,
+        finalAnswer: finalAnswer,
+        finalAnswerLatex: finalAnswerLatex,
+        steps: steps,
+        knowledgePoints: knowledgePoints,
+        unitCheck: unitCheck,
+        similarQuestions: similarQuestions,
+        uncertain: uncertain,
+        disclaimer: disclaimer,
+        netlist: netlist ?? this.netlist,
+      );
 
   factory AskResponse.fromJson(Map<String, dynamic> json) {
     List<T> parseObjects<T>(
@@ -62,6 +80,9 @@ class AskResponse {
           parseObjects(json['similar_questions'], SimilarQuestion.fromJson),
       uncertain: parseStrings(json['uncertain']),
       disclaimer: json['disclaimer'] as String? ?? '',
+      netlist: SpiceNetlist.fromJson(Map<String, dynamic>.from(
+        json['netlist'] as Map? ?? <String, dynamic>{},
+      )),
     );
   }
 
@@ -79,5 +100,6 @@ class AskResponse {
             .toList(),
         'uncertain': uncertain,
         'disclaimer': disclaimer,
+        'netlist': netlist.toJson(),
       };
 }

@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-09-28T03:01:37",
+  "summary": {
+    "mode": "offline",
+    "case_count": 3,
+    "structured_success_rate": 1.0,
+    "answer_accuracy": 1.0,
+    "unit_accuracy": 1.0,
+    "mean_elapsed_seconds": 0.0,
+    "p95_elapsed_seconds": 0.001,
+    "confidence_counts": {
+      "high": 3,
+      "medium": 0,
+      "low": 0
+    }
+  },
+  "results": [
+    {
+      "id": "q_1_9_8",
+      "structured": true,
+      "answer_passed": true,
+      "units_passed": true,
+      "confidence": "high",
+      "elapsed_seconds": 0.001,
+      "targets": [
+        {
+          "name": "U_ab",
+          "pattern": "U\\s*_?\\{?ab\\}?[^=\\d-]*(?:=|≈|approx)?\\s*(-?\\d+(?:\\.\\d+)?)",
+          "expected": 7.0,
+          "tolerance": 0.05,
+          "unit": "V",
+          "actual": 7.0,
+          "passed": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "q_1_6_12",
+      "structured": true,
+      "answer_passed": true,
+      "units_passed": true,
+      "confidence": "high",
+      "elapsed_seconds": 0.0,
+      "targets": [
+        {
+          "name": "R_ab",
+          "pattern": "R\\s*_?\\{?ab\\}?[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)",
+          "expected": 2.012,
+          "tolerance": 0.02,
+          "unit": "Ω",
+          "actual": 2.012,
+          "passed": true
+        },
+        {
+          "name": "I",
+          "pattern": "(?:^|[^A-Za-z])I[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)",
+          "expected": 0.749,
+          "tolerance": 0.01,
+          "unit": "A",
+          "actual": 0.749,
+          "passed": true
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "q_10_2_12",
+      "structured": true,
+      "answer_passed": true,
+      "units_passed": true,
+      "confidence": "high",
+      "elapsed_seconds": 0.0,
+      "targets": [
+        {
+          "name": "A_u1",
+          "pattern": "A\\s*_?\\{?u1\\}?[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)",
+          "expected": -1.0,
+          "tolerance": 0.1,
+          "unit": "",
+          "actual": -1.0,
+          "passed": true
+        },
+        {
+          "name": "A_u2",
+          "pattern": "A\\s*_?\\{?u2\\}?[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)",
+          "expected": 1.0,
+          "tolerance": 0.1,
+          "unit": "",
+          "actual": 1.0,
+          "passed": true
+        },
+        {
+          "name": "r_o1",
+          "pattern": "r\\s*_?\\{?o1\\}?[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)",
+          "expected": 2.0,
+          "tolerance": 0.2,
+          "unit": "kΩ",
+          "actual": 2.0,
+          "passed": true
+        },
+        {
+          "name": "r_o2",
+          "pattern": "r\\s*_?\\{?o2\\}?[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)",
+          "expected": 21.4,
+          "tolerance": 1.0,
+          "unit": "Ω",
+          "actual": 21.4,
+          "passed": true
+        }
+      ],
+      "error": null
+    }
+  ]
+}

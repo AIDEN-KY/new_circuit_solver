@@ -1,43 +1,19 @@
 <!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Circuit Solver 管理后台</title>
-  <style>
-    body{font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;max-width:920px;margin:32px auto;padding:0 16px;background:#f6f7fb;color:#202124}
-    section{background:#fff;border-radius:14px;padding:20px;margin:16px 0;box-shadow:0 2px 12px #00000010}
-    input,button{font:inherit;padding:10px 12px;margin:4px;border:1px solid #d8dbe5;border-radius:8px}button{cursor:pointer;background:#315bea;color:#fff;border:0}button.secondary{background:#eef1ff;color:#315bea}.hidden{display:none}table{border-collapse:collapse;width:100%;margin-top:12px}th,td{text-align:left;padding:10px;border-bottom:1px solid #eee}.muted{color:#697386}.error{color:#b42318}.success{color:#147d45}
-  </style>
-</head>
-<body>
-  <h1>Circuit Solver 管理后台</h1>
-  <p class="muted">仅供内测管理员使用。请通过 HTTPS 和受保护的网络访问。</p>
-  <section id="loginBox"><h2>管理员登录</h2><input id="adminName" placeholder="管理员账号"><input id="adminPassword" type="password" placeholder="管理员密码"><button onclick="login()">登录</button><p id="loginMessage" class="error"></p></section>
-  <section id="panel" class="hidden">
-    <button class="secondary" onclick="logout()">退出登录</button>
-    <h2>用户查询</h2><input id="keyword" placeholder="用户ID或用户名"><button onclick="searchUsers()">查询</button><p id="message"></p>
-    <table><thead><tr><th>用户ID</th><th>用户名</th><th>剩余次数</th><th>操作</th></tr></thead><tbody id="users"></tbody></table>
-  </section>
-  <script>
-    let token = sessionStorage.getItem('admin_token') || '';
-    const $ = id => document.getElementById(id);
-    function setLoggedIn(value){ $('loginBox').classList.toggle('hidden',value); $('panel').classList.toggle('hidden',!value); }
-    setLoggedIn(Boolean(token));
-    async function login(){
-      const r=await fetch('/api/v1/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('adminName').value,password:$('adminPassword').value})});
-      const data=await r.json(); if(!r.ok){$('loginMessage').textContent=data.detail||'登录失败';return;} token=data.access_token;sessionStorage.setItem('admin_token',token);setLoggedIn(true);
-    }
-    async function searchUsers(){
-      const r=await fetch('/api/v1/admin/users?keyword='+encodeURIComponent($('keyword').value),{headers:{Authorization:'Bearer '+token}}); const data=await r.json();
-      if(!r.ok){$('message').className='error';$('message').textContent=data.detail||'查询失败';return;}
-      $('message').textContent='';$('users').innerHTML=data.map(u=>`<tr><td><code>${u.id}</code></td><td>${u.username}</td><td>${u.free_uses_remaining}</td><td><button onclick="grant('${u.id}')">增加次数</button></td></tr>`).join('');
-    }
-    async function grant(id){
-      const uses=Number(prompt('增加多少次？','10')); if(!Number.isInteger(uses)||uses<=0)return; const ref=prompt('填写转账/核验流水号（不可重复）','qq-'+Date.now()); if(!ref)return; const note=prompt('备注','QQ群人工核验')||'';
-      const r=await fetch('/api/v1/admin/users/'+id+'/grant-uses',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({uses,reference_id:ref,note})}); const data=await r.json();
-      $('message').className=r.ok?'success':'error';$('message').textContent=r.ok?'授权成功，当前剩余 '+data.free_uses_remaining+' 次':(data.detail||'授权失败'); if(r.ok)searchUsers();
-    }
-    async function logout(){if(token)await fetch('/api/v1/admin/logout',{method:'POST',headers:{Authorization:'Bearer '+token}});token='';sessionStorage.removeItem('admin_token');setLoggedIn(false);}
-  </script>
-</body>
-</html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Circuit Solver 本机管理后台</title>
+<style>body{font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;max-width:1040px;margin:28px auto;padding:0 16px;background:#f5f7fb;color:#172033}section{background:#fff;border-radius:16px;padding:20px;margin:16px 0;box-shadow:0 2px 14px #0000000d}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px}input,textarea,button{font:inherit;padding:10px 12px;border:1px solid #d8ddea;border-radius:9px}textarea{min-height:72px}button{cursor:pointer;background:#315bea;color:#fff;border:0}button.secondary{background:#eef1ff;color:#315bea}button.danger{background:#b42318}.hidden{display:none}table{border-collapse:collapse;width:100%;margin-top:12px}th,td{text-align:left;padding:10px;border-bottom:1px solid #eee}.muted{color:#697386}.error{color:#b42318}.success{color:#147d45}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}code{font-size:12px}</style></head><body>
+<h1>Circuit Solver 本机管理后台</h1><p class="muted">仅绑定 127.0.0.1:8001。公网进程不会注册本页面及管理接口。</p>
+<section id="loginBox"><h2>管理员登录</h2><div class="row"><input id="adminName" placeholder="管理员账号"><input id="adminPassword" type="password" placeholder="管理员密码"><button onclick="login()">登录</button></div><p id="loginMessage" class="error"></p></section>
+<main id="panel" class="hidden"><div class="row"><button class="secondary" onclick="logout()">退出登录</button><span id="message"></span></div>
+<section><h2>用户管理</h2><div class="row"><input id="keyword" placeholder="用户ID或用户名"><button onclick="searchUsers()">查询</button></div><table><thead><tr><th>用户ID</th><th>用户名</th><th>状态</th><th>剩余次数</th><th>操作</th></tr></thead><tbody id="users"></tbody></table></section>
+<section><h2>系统配置</h2><div class="grid"><label class="field">公告标题<input id="announcementTitle"></label><label class="field">QQ群<input id="qqGroup"></label><label class="field">最低版本<input id="minVersion"></label><label class="field">最新版本<input id="latestVersion"></label><label class="field">新用户赠送次数<input id="initialUses" type="number" min="0"></label><label class="field">下载地址<input id="downloadUrl"></label><label class="field">公告内容<textarea id="announcementMessage"></textarea></label><label class="field">维护提示<textarea id="maintenanceMessage"></textarea></label><label class="field">客服/人工授权文案<textarea id="supportMessage"></textarea></label></div><div class="row"><label><input id="announcementEnabled" type="checkbox"> 显示公告</label><label><input id="maintenanceMode" type="checkbox"> 维护模式</label><button onclick="saveConfig()">保存配置</button><span id="revision" class="muted"></span></div></section></main>
+<script>
+let token=sessionStorage.getItem('admin_token')||'';const $=id=>document.getElementById(id);function headers(json=false){return {'Authorization':'Bearer '+token,...(json?{'Content-Type':'application/json'}:{})}}function logged(v){$('loginBox').classList.toggle('hidden',v);$('panel').classList.toggle('hidden',!v)}function notice(text,ok=false){$('message').className=ok?'success':'error';$('message').textContent=text}
+async function login(){const r=await fetch('/api/v1/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('adminName').value,password:$('adminPassword').value})});const d=await r.json();if(!r.ok){$('loginMessage').textContent=d.detail||'登录失败';return}token=d.access_token;sessionStorage.setItem('admin_token',token);logged(true);await Promise.all([searchUsers(),loadConfig()])}
+async function searchUsers(){const r=await fetch('/api/v1/admin/users?keyword='+encodeURIComponent($('keyword').value),{headers:headers()});const d=await r.json();if(!r.ok){notice(d.detail||'查询失败');return}$('users').innerHTML=d.map(u=>`<tr><td><code>${u.id}</code></td><td>${u.username}</td><td>${u.status}</td><td>${u.free_uses_remaining}</td><td class="row"><button onclick="adjust('${u.id}')">调整次数</button><button class="${u.status==='active'?'danger':'secondary'}" onclick="statusUser('${u.id}','${u.status==='active'?'disabled':'active'}')">${u.status==='active'?'禁用':'启用'}</button></td></tr>`).join('')}
+async function adjust(id){const delta=Number(prompt('输入调整数量：增加填正数，扣减填负数','3'));if(!Number.isInteger(delta)||delta===0)return;const reference_id=prompt('唯一流水号（不可重复）','manual-'+Date.now());if(!reference_id)return;const note=prompt('备注（必填）','内测人工调整');if(!note)return;const r=await fetch(`/api/v1/admin/users/${id}/adjust-uses`,{method:'POST',headers:headers(true),body:JSON.stringify({delta,reference_id,note})});const d=await r.json();notice(r.ok?'调整成功，剩余 '+d.free_uses_remaining+' 次':(d.detail||'调整失败'),r.ok);if(r.ok)searchUsers()}
+async function statusUser(id,status){const note=prompt('操作备注（必填）',status==='disabled'?'内测账号停用':'恢复内测账号');if(!note)return;const r=await fetch(`/api/v1/admin/users/${id}/status`,{method:'POST',headers:headers(true),body:JSON.stringify({status,note})});const d=await r.json();notice(r.ok?'账号状态已更新':(d.detail||'更新失败'),r.ok);if(r.ok)searchUsers()}
+async function loadConfig(){const r=await fetch('/api/v1/admin/config',{headers:headers()});const d=await r.json();if(!r.ok){notice(d.detail||'配置读取失败');return}const map={announcementTitle:'announcement_title',announcementMessage:'announcement_message',maintenanceMessage:'maintenance_message',supportMessage:'support_message',qqGroup:'qq_group',initialUses:'initial_free_uses',minVersion:'min_supported_version',latestVersion:'latest_version',downloadUrl:'download_url'};Object.entries(map).forEach(([id,key])=>$(id).value=d[key]??'');$('announcementEnabled').checked=d.announcement_enabled;$('maintenanceMode').checked=d.maintenance_mode;$('revision').textContent='当前修订 '+d.revision}
+async function saveConfig(){const body={announcement_enabled:$('announcementEnabled').checked,announcement_title:$('announcementTitle').value,announcement_message:$('announcementMessage').value,maintenance_mode:$('maintenanceMode').checked,maintenance_message:$('maintenanceMessage').value,support_message:$('supportMessage').value,qq_group:$('qqGroup').value,initial_free_uses:Number($('initialUses').value),min_supported_version:$('minVersion').value,latest_version:$('latestVersion').value,download_url:$('downloadUrl').value};const r=await fetch('/api/v1/admin/config',{method:'PUT',headers:headers(true),body:JSON.stringify(body)});const d=await r.json();notice(r.ok?'系统配置已保存':(d.detail||'保存失败'),r.ok);if(r.ok)loadConfig()}
+async function logout(){if(token)await fetch('/api/v1/admin/logout',{method:'POST',headers:headers()});token='';sessionStorage.removeItem('admin_token');logged(false)}logged(Boolean(token));if(token)Promise.all([searchUsers(),loadConfig()]);
+</script></body></html>

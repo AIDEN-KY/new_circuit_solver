@@ -13,6 +13,13 @@ def _resolve_path(value: str) -> Path:
     return path if path.is_absolute() else BACKEND_DIR / path
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() not in {"0", "false", "no", "off"}
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     """从环境变量读取服务配置，避免把密钥和机器路径写进代码。"""
@@ -25,7 +32,6 @@ class Settings:
     ollama_base_url: str
     ai_api_base_url: str
     ai_api_key: str
-    library_match_threshold: float
     max_image_bytes: int
     ai_reasoning_effort: str = "none"
     auth_required: bool = False
@@ -34,12 +40,13 @@ class Settings:
     session_days: int = 30
     admin_username: str = ""
     admin_password: str = ""
+    admin_routes_enabled: bool = True
+    trust_cloudflare_headers: bool = False
+    max_request_bytes: int = 10 * 1024 * 1024
+    max_concurrent_solves: int = 2
 
     @classmethod
     def from_env(cls) -> "Settings":
-        threshold = float(os.getenv("LIBRARY_MATCH_THRESHOLD", "0.92"))
-        if not 0 <= threshold <= 1:
-            raise ValueError("LIBRARY_MATCH_THRESHOLD 必须在 0 到 1 之间")
         reasoning_effort = os.getenv("AI_REASONING_EFFORT", "none").strip().lower()
         if reasoning_effort not in {"none", "low", "high", "max"}:
             raise ValueError("AI_REASONING_EFFORT 只支持 none、low、high、max")
@@ -56,7 +63,6 @@ class Settings:
             ).rstrip("/"),
             ai_api_base_url=os.getenv("AI_API_BASE_URL", "").rstrip("/"),
             ai_api_key=os.getenv("AI_API_KEY", ""),
-            library_match_threshold=threshold,
             max_image_bytes=int(os.getenv("MAX_IMAGE_BYTES", str(8 * 1024 * 1024))),
             ai_reasoning_effort=reasoning_effort,
             auth_required=os.getenv("AUTH_REQUIRED", "true").strip().lower()
@@ -66,4 +72,12 @@ class Settings:
             session_days=max(1, int(os.getenv("SESSION_DAYS", "30"))),
             admin_username=os.getenv("ADMIN_USERNAME", "").strip(),
             admin_password=os.getenv("ADMIN_PASSWORD", ""),
+            admin_routes_enabled=_env_bool("ADMIN_ROUTES_ENABLED", True),
+            trust_cloudflare_headers=_env_bool("TRUST_CLOUDFLARE_HEADERS", False),
+            max_request_bytes=max(
+                1024, int(os.getenv("MAX_REQUEST_BYTES", str(10 * 1024 * 1024)))
+            ),
+            max_concurrent_solves=max(
+                1, int(os.getenv("MAX_CONCURRENT_SOLVES", "2"))
+            ),
         )

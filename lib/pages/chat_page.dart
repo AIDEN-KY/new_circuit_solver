@@ -77,6 +77,16 @@ class _ChatPageState extends State<ChatPage> {
             style: TextStyle(color: Color(0xFF1E40AF), height: 1.45),
           ),
         ),
+        if (provider.response?.netlist.validationPassed == true) ...<Widget>[
+          const SizedBox(height: 8),
+          const Row(
+            children: <Widget>[
+              Icon(Icons.link_rounded, size: 18, color: Color(0xFF2563EB)),
+              SizedBox(width: 6),
+              Expanded(child: Text('本对话已绑定当前 SPICE 网表；修改参数时会先校验，再重新求解。', style: TextStyle(color: Color(0xFF1E40AF)))),
+            ],
+          ),
+        ],
         const SizedBox(height: 14),
         if (messages.isEmpty) ...<Widget>[
           _suggestion('图中 R2 的阻值是 20Ω，请据此重新计算。'),

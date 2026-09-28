@@ -7,6 +7,7 @@ import '../models/ask_request.dart';
 import '../models/ask_response.dart';
 import '../models/backend_health.dart';
 import '../models/chat_message.dart';
+import '../models/spice_netlist.dart';
 import '../utils/error_handler.dart';
 import 'auth_service.dart';
 
@@ -32,6 +33,7 @@ class ApiService {
       final Response<dynamic> response = await _dio.get<dynamic>(
         ApiConfig.healthUrl,
         options: Options(
+          headers: AuthService.authorizationHeaders,
           sendTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
@@ -58,7 +60,7 @@ class ApiService {
     }
   }
 
-  Future<ChatMessage> chat({
+  Future<ChatReply> chat({
     required AskRequest request,
     required AskResponse originalResponse,
     required List<ChatMessage> messages,
@@ -80,9 +82,19 @@ class ApiService {
         options: Options(headers: AuthService.authorizationHeaders),
       );
       final Map<String, dynamic> json = _parseResponse(response.data);
-      return ChatMessage(
-        role: 'assistant',
-        content: json['answer'] as String? ?? '',
+      return ChatReply(
+        answer: json['answer'] as String? ?? '',
+        intent: json['intent'] as String? ?? 'answer',
+        updatedNetlist: json['updated_netlist'] is Map
+            ? SpiceNetlist.fromJson(
+                Map<String, dynamic>.from(json['updated_netlist'] as Map),
+              )
+            : null,
+        recalculatedResponse: json['recalculated_response'] is Map
+            ? AskResponse.fromJson(
+                Map<String, dynamic>.from(json['recalculated_response'] as Map),
+              )
+            : null,
       );
     } catch (error) {
       throw ErrorHandler.toAppException(error);
@@ -97,4 +109,13 @@ class ApiService {
     }
     throw const AppException('服务器返回的数据格式不正确。');
   }
+}
+
+class ChatReply {
+  const ChatReply({required this.answer, this.intent = 'answer', this.updatedNetlist, this.recalculatedResponse});
+
+  final String answer;
+  final String intent;
+  final SpiceNetlist? updatedNetlist;
+  final AskResponse? recalculatedResponse;
 }

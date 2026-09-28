@@ -186,7 +186,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: <Widget>[
                     const ListTile(leading: Icon(Icons.electrical_services_rounded), title: Text('电路识图搜题'), subtitle: Text('circuit_solver')),
                     const Divider(height: 1),
-                    const ListTile(leading: Icon(Icons.numbers_rounded), title: Text('版本号'), trailing: Text('1.6.1')),
+                    const ListTile(leading: Icon(Icons.numbers_rounded), title: Text('版本号'), trailing: Text('1.7.0')),
                     const Divider(height: 1),
                     const ListTile(leading: Icon(Icons.school_outlined), title: Text('当前支持'), trailing: Text('电工学电路图')),
                     const Divider(height: 1),
@@ -218,7 +218,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final String detail = health == null
         ? (provider.backendHealthError ?? '连接失败')
         : 'API ${health.version} · ${health.aiProvider}/${health.aiModel}\n'
-            '可发布题库 ${health.libraryQuestions} 道';
+            '账号保护：${health.authRequired ? '已开启' : '兼容模式'}';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(

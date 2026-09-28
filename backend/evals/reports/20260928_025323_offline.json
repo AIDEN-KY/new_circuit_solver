@@ -1,0 +1,49 @@
+{
+  "generated_at": "2026-09-28T02:53:23",
+  "summary": {
+    "mode": "offline",
+    "case_count": 3,
+    "structured_success_rate": 0.0,
+    "answer_accuracy": 0.0,
+    "unit_accuracy": 0.0,
+    "mean_elapsed_seconds": 0.001,
+    "p95_elapsed_seconds": 0.003,
+    "confidence_counts": {
+      "high": 0,
+      "medium": 0,
+      "low": 0
+    }
+  },
+  "results": [
+    {
+      "id": "q_1_9_8",
+      "structured": false,
+      "answer_passed": false,
+      "units_passed": false,
+      "confidence": "",
+      "elapsed_seconds": 0.003,
+      "targets": [],
+      "error": "3 validation errors for AiSolution\nrequest_id\n  Extra inputs are not permitted [type=extra_forbidden, input_value='seed_q_1_9_8', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nsource\n  Extra inputs are not permitted [type=extra_forbidden, input_value='library', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nsimilar_questions\n  Extra inputs are not permitted [type=extra_forbidden, input_value=[], input_type=list]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
+    },
+    {
+      "id": "q_1_6_12",
+      "structured": false,
+      "answer_passed": false,
+      "units_passed": false,
+      "confidence": "",
+      "elapsed_seconds": 0.0,
+      "targets": [],
+      "error": "3 validation errors for AiSolution\nrequest_id\n  Extra inputs are not permitted [type=extra_forbidden, input_value='seed_q_1_6_12', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nsource\n  Extra inputs are not permitted [type=extra_forbidden, input_value='library', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nsimilar_questions\n  Extra inputs are not permitted [type=extra_forbidden, input_value=[], input_type=list]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
+    },
+    {
+      "id": "q_10_2_12",
+      "structured": false,
+      "answer_passed": false,
+      "units_passed": false,
+      "confidence": "",
+      "elapsed_seconds": 0.0,
+      "targets": [],
+      "error": "3 validation errors for AiSolution\nrequest_id\n  Extra inputs are not permitted [type=extra_forbidden, input_value='seed_q_10_2_12', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nsource\n  Extra inputs are not permitted [type=extra_forbidden, input_value='library', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nsimilar_questions\n  Extra inputs are not permitted [type=extra_forbidden, input_value=[], input_type=list]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
+    }
+  ]
+}

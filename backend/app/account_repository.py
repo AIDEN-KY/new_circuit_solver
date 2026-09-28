@@ -40,6 +40,7 @@ class Account:
     username: str
     free_uses_remaining: int
     balance_fen: int
+    status: str = "active"
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +72,7 @@ class AccountSummary:
     username: str
     free_uses_remaining: int
     created_at: int
+    status: str = "active"
 
 
 class AccountRepository:
@@ -102,7 +104,8 @@ class AccountRepository:
                     password_hash TEXT NOT NULL,
                     free_uses_remaining INTEGER NOT NULL CHECK(free_uses_remaining >= 0),
                     balance_fen INTEGER NOT NULL DEFAULT 0 CHECK(balance_fen >= 0),
-                    created_at INTEGER NOT NULL
+                    created_at INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'active'
                 );
                 CREATE TABLE IF NOT EXISTS sessions (
                     token_hash TEXT PRIMARY KEY,
@@ -141,8 +144,25 @@ class AccountRepository:
                 );
                 CREATE INDEX IF NOT EXISTS idx_manual_grants_user
                 ON manual_grants(user_id, created_at);
+                CREATE TABLE IF NOT EXISTS manual_adjustments (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL REFERENCES users(id),
+                    delta INTEGER NOT NULL CHECK(delta != 0),
+                    operator TEXT NOT NULL,
+                    reference_id TEXT NOT NULL UNIQUE,
+                    note TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
                 """
             )
+            columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(users)").fetchall()
+            }
+            if "status" not in columns:
+                connection.execute(
+                    "ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'"
+                )
         # 服务进程异常退出时，尚未完成的预占请求不应永久消耗用户额度。
         with self._connect() as connection:
             pending = connection.execute(
@@ -151,9 +171,12 @@ class AccountRepository:
         for row in pending:
             self.refund_usage(row["id"])
 
-    def register(self, username: str, password: str) -> Session:
+    def register(
+        self, username: str, password: str, *, initial_free_uses: int | None = None
+    ) -> Session:
         user_id = uuid.uuid4().hex
         now = int(time.time())
+        granted_uses = self._initial_free_uses if initial_free_uses is None else max(0, initial_free_uses)
         try:
             with self._connect() as connection:
                 connection.execute(
@@ -166,7 +189,7 @@ class AccountRepository:
                         user_id,
                         username,
                         self._hash_password(password),
-                        self._initial_free_uses,
+                        granted_uses,
                         now,
                     ),
                 )
@@ -176,7 +199,7 @@ class AccountRepository:
                         user_id, event_type, free_uses_delta, reference_id, created_at
                     ) VALUES (?, 'register_bonus', ?, ?, ?)
                     """,
-                    (user_id, self._initial_free_uses, user_id, now),
+                    (user_id, granted_uses, user_id, now),
                 )
         except sqlite3.IntegrityError as error:
             raise AccountExistsError("该用户名已被注册") from error
@@ -185,11 +208,13 @@ class AccountRepository:
     def login(self, username: str, password: str) -> Session:
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT id, password_hash FROM users WHERE username = ? COLLATE NOCASE",
+                "SELECT id, password_hash, status FROM users WHERE username = ? COLLATE NOCASE",
                 (username,),
             ).fetchone()
         if row is None or not self._verify_password(password, row["password_hash"]):
             raise InvalidCredentialsError("用户名或密码错误")
+        if row["status"] != "active":
+            raise InvalidCredentialsError("账号已被停用，请联系管理员")
         return self._create_session(row["id"])
 
     def authenticate(self, token: str) -> Account:
@@ -198,7 +223,7 @@ class AccountRepository:
         with self._connect() as connection:
             row = connection.execute(
                 """
-                SELECT u.id, u.username, u.free_uses_remaining, u.balance_fen
+                SELECT u.id, u.username, u.free_uses_remaining, u.balance_fen, u.status
                 FROM sessions s
                 JOIN users u ON u.id = s.user_id
                 WHERE s.token_hash = ? AND s.expires_at > ?
@@ -207,6 +232,8 @@ class AccountRepository:
             ).fetchone()
         if row is None:
             raise InvalidSessionError("登录已失效，请重新登录")
+        if row["status"] != "active":
+            raise InvalidSessionError("账号已被停用，请联系管理员")
         return self._account_from_row(row)
 
     def logout(self, token: str) -> None:
@@ -246,7 +273,7 @@ class AccountRepository:
         pattern = f"%{value}%"
         with self._connect() as connection:
             rows = connection.execute(
-                """SELECT id, username, free_uses_remaining, created_at FROM users
+                """SELECT id, username, free_uses_remaining, created_at, status FROM users
                    WHERE id LIKE ? OR username LIKE ? COLLATE NOCASE
                    ORDER BY created_at DESC LIMIT ?""",
                 (pattern, pattern, safe_limit),
@@ -257,6 +284,7 @@ class AccountRepository:
                 username=row["username"],
                 free_uses_remaining=int(row["free_uses_remaining"]),
                 created_at=int(row["created_at"]),
+                status=row["status"],
             )
             for row in rows
         ]
@@ -264,7 +292,7 @@ class AccountRepository:
     def get_account(self, user_id: str) -> Account:
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT id, username, free_uses_remaining, balance_fen FROM users WHERE id = ?",
+                "SELECT id, username, free_uses_remaining, balance_fen, status FROM users WHERE id = ?",
                 (user_id,),
             ).fetchone()
         if row is None:
@@ -280,7 +308,7 @@ class AccountRepository:
         reference_id: str,
         note: str = "",
     ) -> Account:
-        """人工发放次数；reference_id 唯一，防止重复操作导致重复到账。"""
+        """兼容旧接口；新后台统一使用 adjust_uses。"""
         if uses <= 0:
             raise ValueError("发放次数必须大于0")
         operator = operator.strip()
@@ -341,6 +369,85 @@ class AccountRepository:
         finally:
             connection.close()
 
+    def adjust_uses(
+        self,
+        user_id: str,
+        delta: int,
+        *,
+        operator: str,
+        reference_id: str,
+        note: str,
+    ) -> Account:
+        if delta == 0:
+            raise ValueError("调整次数不能为0")
+        if not operator.strip() or not reference_id.strip() or not note.strip():
+            raise ValueError("操作人、业务流水号和备注不能为空")
+        now = int(time.time())
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT free_uses_remaining FROM users WHERE id = ?", (user_id,)
+            ).fetchone()
+            if row is None:
+                raise AccountNotFoundError("未找到该用户ID")
+            if int(row["free_uses_remaining"]) + delta < 0:
+                raise ValueError("扣减后剩余次数不能小于0")
+            connection.execute(
+                """INSERT INTO manual_adjustments(
+                       id, user_id, delta, operator, reference_id, note, created_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    uuid.uuid4().hex, user_id, delta, operator.strip(),
+                    reference_id.strip(), note.strip(), now,
+                ),
+            )
+            connection.execute(
+                "UPDATE users SET free_uses_remaining = free_uses_remaining + ? WHERE id = ?",
+                (delta, user_id),
+            )
+            connection.execute(
+                """INSERT INTO account_ledger(
+                       user_id, event_type, free_uses_delta, reference_id, created_at
+                   ) VALUES (?, 'adjustment', ?, ?, ?)""",
+                (user_id, delta, reference_id.strip(), now),
+            )
+            result = connection.execute(
+                """SELECT id, username, free_uses_remaining, balance_fen, status
+                   FROM users WHERE id = ?""",
+                (user_id,),
+            ).fetchone()
+            connection.commit()
+            return self._account_from_row(result)
+        except sqlite3.IntegrityError as error:
+            connection.rollback()
+            if "reference_id" in str(error):
+                raise DuplicateGrantError("该业务流水号已经处理，禁止重复调整") from error
+            raise
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def set_status(self, user_id: str, status: str) -> Account:
+        if status not in {"active", "disabled"}:
+            raise ValueError("不支持的账号状态")
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "UPDATE users SET status = ? WHERE id = ?", (status, user_id)
+            )
+            if cursor.rowcount == 0:
+                raise AccountNotFoundError("未找到该用户ID")
+            if status == "disabled":
+                connection.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+            row = connection.execute(
+                """SELECT id, username, free_uses_remaining, balance_fen, status
+                   FROM users WHERE id = ?""",
+                (user_id,),
+            ).fetchone()
+        return self._account_from_row(row)
+
     def reserve_usage(self, user_id: str) -> UsageReservation:
         reservation_id = uuid.uuid4().hex
         now = int(time.time())
@@ -348,11 +455,13 @@ class AccountRepository:
         try:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
-                "SELECT free_uses_remaining, balance_fen FROM users WHERE id = ?",
+                "SELECT free_uses_remaining, balance_fen, status FROM users WHERE id = ?",
                 (user_id,),
             ).fetchone()
             if row is None:
                 raise InvalidSessionError("账号不存在")
+            if row["status"] != "active":
+                raise InvalidSessionError("账号已被停用，请联系管理员")
             if row["free_uses_remaining"] > 0:
                 source, amount_fen = "free", 0
                 connection.execute(
@@ -511,10 +620,13 @@ class AccountRepository:
             username=row["username"],
             free_uses_remaining=int(row["free_uses_remaining"]),
             balance_fen=int(row["balance_fen"]),
+            status=row["status"] if "status" in row.keys() else "active",
         )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self._database_path, timeout=10)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute("PRAGMA journal_mode = WAL")
+        connection.execute("PRAGMA busy_timeout = 10000")
         return connection

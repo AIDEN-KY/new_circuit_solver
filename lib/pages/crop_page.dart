@@ -5,12 +5,15 @@ import 'package:provider/provider.dart';
 
 import '../providers/ask_provider.dart';
 import '../utils/error_handler.dart';
+import 'description_page.dart';
+import 'interactive_page.dart';
 import 'loading_page.dart';
 
 class CropPage extends StatefulWidget {
-  const CropPage({required this.imagePath, super.key});
+  const CropPage({required this.imagePath, this.nextMode = 'photo', super.key});
 
   final String imagePath;
+  final String nextMode;
 
   @override
   State<CropPage> createState() => _CropPageState();
@@ -125,14 +128,35 @@ class _CropPageState extends State<CropPage> {
   Future<void> _confirm() async {
     final Size? imageSize = _displayImageSize;
     if (imageSize == null) return;
-    context.read<AskProvider>().prepareQuestion(
-      imagePath: widget.imagePath,
-      cropBox: <String, num>{
+    final Map<String, num> cropBox = <String, num>{
         'x': (_selection.left * imageSize.width).round(),
         'y': (_selection.top * imageSize.height).round(),
         'w': (_selection.width * imageSize.width).round(),
         'h': (_selection.height * imageSize.height).round(),
-      },
+      };
+    if (widget.nextMode == 'description') {
+      await Navigator.of(context).push<void>(MaterialPageRoute<void>(
+        builder: (_) => DescriptionPage(
+          imagePath: widget.imagePath,
+          cropBox: cropBox,
+          rotationDegrees: _rotationDegrees,
+        ),
+      ));
+      return;
+    }
+    if (widget.nextMode == 'interactive') {
+      await Navigator.of(context).push<void>(MaterialPageRoute<void>(
+        builder: (_) => InteractivePage(
+          imagePath: widget.imagePath,
+          cropBox: cropBox,
+          rotationDegrees: _rotationDegrees,
+        ),
+      ));
+      return;
+    }
+    context.read<AskProvider>().prepareQuestion(
+      imagePath: widget.imagePath,
+      cropBox: cropBox,
       rotationDegrees: _rotationDegrees,
     );
     await Navigator.of(context).push<void>(

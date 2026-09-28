@@ -10,6 +10,7 @@ import 'pages/register_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/splash_page.dart';
 import 'providers/ask_provider.dart';
+import 'providers/app_config_provider.dart';
 import 'providers/auth_provider.dart';
 
 Future<void> main() async {
@@ -29,6 +30,9 @@ class CircuitSolverApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<AppConfigProvider>(
+          create: (_) => AppConfigProvider(),
+        ),
         ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
         ChangeNotifierProxyProvider<AuthProvider, AskProvider>(
           create: (_) => AskProvider(),

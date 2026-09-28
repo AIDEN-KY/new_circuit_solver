@@ -20,6 +20,7 @@ class ApiConfig {
 
   static String get askUrl => '$baseUrl/api/v1/ask';
   static String get healthUrl => '$baseUrl/api/v1/health';
+  static String get appConfigUrl => '$baseUrl/api/v1/app-config';
   static String get chatUrl => '$baseUrl/api/v1/chat';
   static String get registerUrl => '$baseUrl/api/v1/auth/register';
   static String get loginUrl => '$baseUrl/api/v1/auth/login';

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
+import '../providers/app_config_provider.dart';
 import 'home_page.dart';
 import 'login_page.dart';
 
@@ -26,6 +27,7 @@ class _SplashPageState extends State<SplashPage> {
     await Future.wait<void>(<Future<void>>[
       Future<void>.delayed(const Duration(seconds: 2)),
       context.read<AuthProvider>().initialize(),
+      context.read<AppConfigProvider>().initialize(),
     ]);
     if (!mounted) return;
     final AuthProvider auth = context.read<AuthProvider>();

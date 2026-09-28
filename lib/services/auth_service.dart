@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/api_config.dart';
+import '../config/app_environment.dart';
 import '../models/account_profile.dart';
 import '../models/account_activity.dart';
 import '../utils/error_handler.dart';
@@ -34,9 +35,10 @@ class AuthService {
 
   static Map<String, dynamic> get authorizationHeaders {
     final String? token = accessToken;
-    return token == null || token.isEmpty
-        ? const <String, dynamic>{}
-        : <String, dynamic>{'Authorization': 'Bearer $token'};
+    return <String, dynamic>{
+      'X-App-Version': AppEnvironment.version,
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
   }
 
   Future<String?> loadToken() async {
@@ -118,6 +120,7 @@ class AuthService {
       final Response<dynamic> response = await _dio.post<dynamic>(
         url,
         data: <String, dynamic>{'username': username, 'password': password},
+        options: Options(headers: authorizationHeaders),
       );
       final Map<String, dynamic> json = _parseResponse(response.data);
       final String token = json['access_token'] as String? ?? '';

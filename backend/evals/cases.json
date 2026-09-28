@@ -1,0 +1,25 @@
+[
+  {
+    "id": "q_1_9_8",
+    "image": "../data/regression/q_1_9_8/question.jpg",
+    "targets": [{"name": "U_ab", "pattern": "U\\s*_?\\{?ab\\}?[^=\\d-]*(?:=|≈|approx)?\\s*(-?\\d+(?:\\.\\d+)?)", "expected": 7.0, "tolerance": 0.05, "unit": "V"}]
+  },
+  {
+    "id": "q_1_6_12",
+    "image": "../data/regression/q_1_6_12/question.jpg",
+    "targets": [
+      {"name": "R_ab", "pattern": "R\\s*_?\\{?ab\\}?[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)", "expected": 2.012, "tolerance": 0.02, "unit": "Ω"},
+      {"name": "I", "pattern": "(?:^|[^A-Za-z])I[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)", "expected": 0.749, "tolerance": 0.01, "unit": "A"}
+    ]
+  },
+  {
+    "id": "q_10_2_12",
+    "image": "../data/regression/q_10_2_12/question.jpg",
+    "targets": [
+      {"name": "A_u1", "pattern": "A\\s*_?\\{?u1\\}?[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)", "expected": -1.0, "tolerance": 0.1, "unit": ""},
+      {"name": "A_u2", "pattern": "A\\s*_?\\{?u2\\}?[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)", "expected": 1.0, "tolerance": 0.1, "unit": ""},
+      {"name": "r_o1", "pattern": "r\\s*_?\\{?o1\\}?[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)", "expected": 2.0, "tolerance": 0.2, "unit": "kΩ"},
+      {"name": "r_o2", "pattern": "r\\s*_?\\{?o2\\}?[^,，;；\\n]*?(?:≈|approx)\\s*(-?\\d+(?:\\.\\d+)?)", "expected": 21.4, "tolerance": 1.0, "unit": "Ω"}
+    ]
+  }
+]

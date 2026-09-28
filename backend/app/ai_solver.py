@@ -36,10 +36,15 @@ SOLUTION_SYSTEM_PROMPT = (
     "处理线性电路去源或置零时：独立理想电压源置零等效为短路，独立理想电流源置零等效为开路，"
     "受控源不能关闭；若题目给出变换后的目标子图，必须优先按该子图的实际导线连接求解。"
     "不得仅凭‘除去’二字把仍由导线连接的支路误判为断路。"
+    "必须同时生成可校验的SPICE网表：netlist.raw使用标准逐行SPICE语法，以节点0为参考，"
+    "元件名唯一，每行至少包含元件名、两个节点和参数，并以.end结束；不要使用未声明的控制语句。"
     "若题目给出原输出并询问移除某个独立源后的输出，必须写出带参考极性的叠加关系："
     "原输出=保留源产生的输出+被移除源单独产生的输出，所以保留源输出=原输出-被移除源贡献。"
     "被移除源的贡献必须在其余独立源置零后计算，并按题目所标正负极性决定代数符号；"
     "不得把该贡献不经符号判断直接加到原输出上。"
+    "计算晶体管放大电路输出电阻时，必须先把输入独立信号源置零，再从指定输出端加测试源；"
+    "集电极输出端与发射极输出端必须分别计算。若理想输入电压源置零后基极交流接地，"
+    "发射极输出电阻应包含晶体管小信号发射极电阻，不能直接取外接发射极电阻。"
 )
 
 
@@ -49,8 +54,8 @@ class AiSolver:
     def __init__(self, provider: AiProvider) -> None:
         self._provider = provider
 
-    async def solve(self, image_bytes: bytes) -> AiSolution:
-        extraction = await self._extract(image_bytes)
+    async def solve(self, image_bytes: bytes | None, user_context: str = "") -> AiSolution:
+        extraction = await self._extract(image_bytes, user_context)
         solution = await self._reason(extraction)
         return self._normalize_and_check(solution, extraction)
 
@@ -69,6 +74,8 @@ class AiSolver:
             "回答应简洁但包含必要推导。所有物理量、变量、数值、单位和公式都用单个美元符号"
             "包裹为行内LaTeX，例如 $I=0.4\\,\\mathrm{A}$。\n\n"
             f"原求解结果：\n{original_response.model_dump_json(indent=2)}\n\n"
+            "当前网表是本次对话的唯一电路上下文。若用户要求修改阻值、电源、连接或元件，"
+            "必须返回 intent=modify_circuit 和完整的 updated_netlist；普通解释问题返回 intent=answer。\n"
             f"此前对话：\n{json.dumps(history, ensure_ascii=False)}\n\n"
             f"用户新问题：\n{message}"
         )
@@ -93,12 +100,36 @@ class AiSolver:
         except ValidationError as error:
             raise AiProviderResponseError("AI追问结果不符合结构化协议") from error
 
-    async def _extract(self, image_bytes: bytes) -> CircuitExtraction:
+    async def solve_from_netlist(self, netlist: str, question: str = "") -> AiSolution:
+        """在网表已通过本地校验后重新求解，避免把修改直接交给业务层拼接。"""
+        result = await self._provider.generate(
+            AiProviderRequest(
+                image_bytes=None,
+                system_prompt=SOLUTION_SYSTEM_PROMPT,
+                user_prompt=(
+                    "请仅依据以下已校验SPICE网表重新计算，并严格输出AiSolution JSON。"
+                    "不得修改网表拓扑；所有步骤和单位必须复核。\n网表：\n"
+                    + netlist
+                    + ("\n用户问题：\n" + question if question else "")
+                ),
+                json_schema=AiSolution.model_json_schema(),
+                structured_output_name="circuit_solution_from_netlist",
+                reasoning_effort="none",
+                max_output_tokens=16384,
+            )
+        )
+        self._log_result("reason_from_netlist", result.provider, result.model, result.elapsed_seconds)
+        try:
+            return AiSolution.model_validate(result.payload)
+        except ValidationError as error:
+            raise AiProviderResponseError("AI修改网表后的结果不符合响应协议") from error
+
+    async def _extract(self, image_bytes: bytes | None, user_context: str = "") -> CircuitExtraction:
         result = await self._provider.generate(
             AiProviderRequest(
                 image_bytes=image_bytes,
                 system_prompt=EXTRACTION_SYSTEM_PROMPT,
-                user_prompt=EXTRACTION_USER_PROMPT,
+                user_prompt=EXTRACTION_USER_PROMPT + ("\n用户补充信息：\n" + user_context if user_context else ""),
                 json_schema=CircuitExtraction.model_json_schema(),
                 structured_output_name="circuit_extraction",
                 reasoning_effort="none",
@@ -125,7 +156,9 @@ class AiSolver:
                 user_prompt=user_prompt,
                 json_schema=AiSolution.model_json_schema(),
                 structured_output_name="circuit_solution",
-                reasoning_effort="low",
+                # 视觉模型的 low 思考曾在简单题上耗尽16K额度而无JSON输出；
+                # 结构化识图已先行完成，此阶段关闭隐藏思考以保证协议稳定。
+                reasoning_effort="none",
                 max_output_tokens=16384,
             )
         )

@@ -11,6 +11,8 @@ class AppEnvironment {
 
   static const String productionBaseUrl = String.fromEnvironment('API_BASE_URL');
 
+  static const String version = '1.7.0';
+
   static bool get isProduction => name == 'production';
 
   static bool get isTester => name == 'tester';

@@ -93,7 +93,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      '登录后使用服务端题库与 AI 搜题',
+                      '登录后使用 AI 电路搜题',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Color(0xFF64748B)),
                     ),

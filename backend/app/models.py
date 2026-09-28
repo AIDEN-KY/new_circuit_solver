@@ -18,10 +18,14 @@ class CropBox(BaseModel):
 class AskRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    image_base64: str = Field(min_length=32)
-    crop_box: CropBox
+    image_base64: str = ""
+    crop_box: CropBox = Field(default_factory=lambda: CropBox(x=0, y=0, w=1, h=1))
     rotation_degrees: int = 0
     subject: Literal["circuit"] = "circuit"
+    input_mode: Literal["photo", "description", "interactive"] = "photo"
+    description: str = Field(default="", max_length=8000)
+    clarification_text: str = Field(default="", max_length=8000)
+    client_request_id: str | None = Field(default=None, min_length=8, max_length=80)
 
     @field_validator("rotation_degrees")
     @classmethod
@@ -86,6 +90,17 @@ class CircuitExtraction(BaseModel):
     uncertain: list[str] = Field(default_factory=list)
 
 
+class SpiceNetlist(BaseModel):
+    """AI 生成、服务端校验后绑定到当前题目的 SPICE 网表。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    raw: str = ""
+    elements: list[str] = Field(default_factory=list)
+    validation_passed: bool = False
+    validation_messages: list[str] = Field(default_factory=list)
+
+
 class AiSolution(BaseModel):
     """AI 必须返回的结构；服务端补充 request_id 和 source。"""
 
@@ -99,6 +114,7 @@ class AiSolution(BaseModel):
     unit_check: UnitCheck
     uncertain: list[str] = Field(default_factory=list)
     disclaimer: str = "本结果由 AI 辅助生成，请核对关键条件。"
+    netlist: SpiceNetlist = Field(default_factory=SpiceNetlist)
 
 
 class AskResponse(AiSolution):
@@ -129,6 +145,9 @@ class ChatResponse(BaseModel):
         min_length=1,
         description="中文回答；物理量、数字、单位和公式必须用 $...$ 包裹",
     )
+    intent: Literal["answer", "modify_circuit"] = "answer"
+    updated_netlist: SpiceNetlist | None = None
+    recalculated_response: AskResponse | None = None
 
 
 class CredentialsRequest(BaseModel):
@@ -154,6 +173,7 @@ class AccountProfile(BaseModel):
     free_uses_remaining: int = Field(ge=0)
     balance_fen: int = Field(ge=0)
     solve_price_fen: int = Field(gt=0)
+    status: Literal["active", "disabled"] = "active"
 
 
 class AccountActivity(BaseModel):
@@ -203,6 +223,28 @@ class AdminGrantRequest(BaseModel):
     note: str = Field(default="", max_length=500)
 
 
+class AdminAdjustUsesRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    delta: int = Field(ge=-100000, le=100000)
+    reference_id: str = Field(min_length=1, max_length=128)
+    note: str = Field(min_length=1, max_length=500)
+
+    @field_validator("delta")
+    @classmethod
+    def validate_delta(cls, value: int) -> int:
+        if value == 0:
+            raise ValueError("调整次数不能为0")
+        return value
+
+
+class AdminUserStatusRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["active", "disabled"]
+    note: str = Field(min_length=1, max_length=500)
+
+
 class AdminUserSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -210,3 +252,38 @@ class AdminUserSummary(BaseModel):
     username: str
     free_uses_remaining: int
     created_at: int
+    status: Literal["active", "disabled"] = "active"
+
+
+class PublicAppConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    announcement_enabled: bool
+    announcement_title: str
+    announcement_message: str
+    maintenance_mode: bool
+    maintenance_message: str
+    support_message: str
+    qq_group: str
+    initial_free_uses: int = Field(ge=0, le=100)
+    min_supported_version: str
+    latest_version: str
+    download_url: str
+    revision: int = Field(ge=1)
+    updated_at: int = Field(ge=0)
+
+
+class AdminAppConfigUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    announcement_enabled: bool
+    announcement_title: str = Field(max_length=100)
+    announcement_message: str = Field(max_length=1000)
+    maintenance_mode: bool
+    maintenance_message: str = Field(min_length=1, max_length=500)
+    support_message: str = Field(min_length=1, max_length=500)
+    qq_group: str = Field(max_length=30)
+    initial_free_uses: int = Field(ge=0, le=100)
+    min_supported_version: str = Field(min_length=1, max_length=30)
+    latest_version: str = Field(min_length=1, max_length=30)
+    download_url: str = Field(max_length=500)

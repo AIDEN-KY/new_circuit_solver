@@ -14,7 +14,6 @@ import '../models/solution_step.dart';
 import '../providers/ask_provider.dart';
 import '../widgets/confidence_badge.dart';
 import '../widgets/latex_text.dart';
-import '../widgets/similar_question_tile.dart';
 import '../widgets/step_card.dart';
 import 'chat_page.dart';
 import 'crop_page.dart';
@@ -198,6 +197,26 @@ class _ResultPageState extends State<ResultPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                 _answer(response),
+                if (response.netlist.validationPassed) ...<Widget>[
+                  const SizedBox(height: 14),
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    title: const Text('高级面板 · 查看 SPICE 网表'),
+                    subtitle: const Text('普通模式不会展示网表；展开后可用于核对电路模型。'),
+                    leading: const Icon(Icons.code_rounded, color: Color(0xFF2563EB)),
+                    children: <Widget>[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        color: const Color(0xFF0F172A),
+                        child: SelectableText(
+                          response.netlist.raw,
+                          style: const TextStyle(color: Color(0xFFE2E8F0), fontFamily: 'monospace', height: 1.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (provider.historyWarning != null) ...<Widget>[
                   const SizedBox(height: 12),
                   _notice(provider.historyWarning!, const Color(0xFFFFFBEB), const Color(0xFF92400E)),
@@ -244,19 +263,11 @@ class _ResultPageState extends State<ResultPage> {
                                 )
                             : null,
                         icon: const Icon(Icons.chat_bubble_outline_rounded),
-                        label: const Text('继续询问题目'),
+                        label: const Text('针对本道电路继续向 AI 提问'),
                       ),
                     ],
                   ),
                 ),
-                if (response.similarQuestions.isNotEmpty) ...<Widget>[
-                  _title(Icons.quiz_outlined, '相似题'),
-                  for (final question in response.similarQuestions)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: SimilarQuestionTile(question: question),
-                    ),
-                ],
                 if (response.disclaimer.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 20),
                   _notice(response.disclaimer, const Color(0xFFF1F5F9), const Color(0xFF64748B)),
@@ -323,8 +334,6 @@ class _ResultPageState extends State<ResultPage> {
 
   String _sourceLabel(String source) {
     switch (source.toLowerCase()) {
-      case 'library':
-        return '来源：题库标准答案';
       case 'ai':
         return '来源：AI 识别与解题';
       case 'mock':

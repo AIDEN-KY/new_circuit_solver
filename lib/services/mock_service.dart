@@ -39,20 +39,15 @@ class MockService {
         'passed': true,
         'note': '',
       },
-      'similar_questions': <Map<String, dynamic>>[
-        <String, dynamic>{
-          'question_id': 'q_1002',
-          'title': '并联电路求总电流',
-          'similarity': 0.82,
-        },
-        <String, dynamic>{
-          'question_id': 'q_1018',
-          'title': '串联电路中的电压分配',
-          'similarity': 0.76,
-        },
-      ],
+      'similar_questions': <Map<String, dynamic>>[],
       'uncertain': <String>['R2 的阻值可能为 20Ω 或 200Ω，请核对原题图片。'],
       'disclaimer': '本结果由 AI 辅助生成，请核对关键条件。',
+      'netlist': <String, dynamic>{
+        'raw': '* Mock circuit\nV1 in 0 DC 12\nR1 in out 10\nR2 out 0 20\n.op\n.end',
+        'elements': <String>['V1', 'R1', 'R2'],
+        'validation_passed': true,
+        'validation_messages': <String>[],
+      },
     });
   }
 }

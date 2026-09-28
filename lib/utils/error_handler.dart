@@ -80,7 +80,15 @@ class ErrorHandler {
         if (code == 409) return AppException(serverMessage ?? '该账号信息已存在。');
         if (code == 404) return const AppException('未找到识别接口，请检查后端地址。');
         if (code == 413) return const AppException('上传图片过大。');
-        if (code == 429) return const AppException('请求过于频繁，请稍后再试。');
+        if (code == 426) {
+          return AppException(serverMessage ?? '当前版本过低，请更新后继续使用。');
+        }
+        if (code == 429) {
+          return AppException(serverMessage ?? '请求过于频繁，请稍后再试。');
+        }
+        if (code == 503) {
+          return AppException(serverMessage ?? '服务暂时不可用，请稍后重试。');
+        }
         if (code != null && code >= 500) {
           return AppException(serverMessage ?? '服务器暂时不可用，请稍后重试。');
         }
